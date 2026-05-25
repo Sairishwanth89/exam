@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Portal - Examination</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="exam-page">
+    <div class="exam-container">
+        <!-- Header -->
+        <header class="exam-header">
+            <div class="header-left">
+                <h1>Examination in Progress</h1>
+                <p id="studentName"></p>
+            </div>
+            <div class="header-right">
+                <div class="timer" id="timer">
+                    <svg class="timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span id="timerDisplay">10:00</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="exam-content">
+            <!-- Questions Section -->
+            <div class="questions-section">
+                <div id="questionsContainer"></div>
+
+                <button type="button" class="btn-primary btn-submit" id="submitBtn">
+                    Submit Exam
+                </button>
+            </div>
+
+            <!-- Webcam Section -->
+            <div class="webcam-section">
+                <div class="webcam-card">
+                    <h3>Proctoring Monitor</h3>
+                    <div class="webcam-container">
+                        <video id="webcam" autoplay playsinline muted></video>
+                        <canvas id="canvas" style="display: none;"></canvas>
+                        <!-- Overlay for no-person / device warnings -->
+                        <div id="proctorOverlay" class="proctor-overlay-warning" style="display:none;">
+                            <div class="pow-icon" id="overlayIcon">👤</div>
+                            <div class="pow-title" id="overlayTitle">No face detected</div>
+                            <div class="pow-sub" id="overlaySub">Please return to your seat and keep your face visible.</div>
+                        </div>
+                        <div class="webcam-status" id="webcamStatus">
+                            <div class="status-indicator"></div>
+                            <span>Initializing...</span>
+                        </div>
+                    </div>
+                    <div class="proctoring-info">
+                        <p>🎥 Your exam is being monitored</p>
+                        <p>👁️ AI detects face, eyes, and head pose</p>
+                        <p>⚠️ Stay focused on the screen</p>
+                    </div>
+                </div>
+
+                <div class="exam-info">
+                    <h4>Exam Guidelines</h4>
+                    <ul>
+                        <li>Answer all questions carefully</li>
+                        <li>Keep your face visible to the camera</li>
+                        <li>Avoid looking away from the screen</li>
+                        <li>No multiple faces should be detected</li>
+                        <li>No mobile phones or external devices</li>
+                        <li>Do not leave your seat during the exam</li>
+                        <li>Timer shows remaining time</li>
+                    </ul>
+                </div>
+
+                <!-- Cheat Score Widget -->
+                <div class="cheat-score-widget" id="cheatScoreWidget">
+                    <div class="cs-header">
+                        <span class="cs-label">🛡️ Integrity Score</span>
+                        <span class="cs-value safe" id="csValue">100%</span>
+                    </div>
+                    <div class="cs-bar-track">
+                        <div class="cs-bar-fill safe" id="csBarFill" style="width:100%"></div>
+                    </div>
+                    <div class="cs-status-line">
+                        <span style="color:#94a3b8;font-size:.75rem">Deductions appear below</span>
+                        <span class="cs-classification safe" id="csClassification">Safe</span>
+                    </div>
+                    <div class="cs-deductions" id="csDeductions">
+                        <div style="font-size:.72rem;color:#475569;text-align:center;padding:.5rem 0">No violations yet ✔</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Modal -->
+        <div id="resultModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Exam Submitted!</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="result-score">
+                        <div class="score-circle">
+                            <span id="scorePercentage">0%</span>
+                        </div>
+                        <p id="scoreDetails"></p>
+                    </div>
+                    <div class="result-message" id="resultMessage"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-primary" onclick="window.location.href='/dashboard.html'">Go to Dashboard</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Check Modal (separate, at top level) -->
+        <div id="systemCheckModal" class="modal" style="display: flex; z-index: 3000;">
+            <div class="modal-content" style="max-width: 520px; text-align: center;">
+                <div class="modal-header">
+                    <h2>🎥 System Check</h2>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 1rem; color: var(--text-secondary);">Please allow camera access when your browser asks. Your face must be visible to start.</p>
+                    <div style="width: 100%; max-width: 320px; margin: 0 auto 1rem; aspect-ratio: 4/3; background: #0f172a; border-radius: 12px; overflow: hidden; border: 2px solid var(--glass-border); position:relative;">
+                        <video id="sysCheckVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display:block;"></video>
+                        <div id="sysCheckVideoPlaceholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#475569;font-size:.85rem;">
+                            <div style="font-size:2.5rem;margin-bottom:.5rem;">📷</div>
+                            <div>Waiting for camera...</div>
+                        </div>
+                    </div>
+                    <div id="sysCheckStatus" style="font-weight: bold; color: var(--warning); margin-bottom: .75rem;">
+                        ⏳ Requesting camera access — allow it in your browser...
+                    </div>
+                    <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;margin-bottom:.5rem;">
+                        <button onclick="window._retryCam && window._retryCam()" style="padding:.4rem 1rem;background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.35);color:#a5b4fc;border-radius:8px;cursor:pointer;font-size:.82rem;font-family:inherit;">🔄 Retry Camera</button>
+                        <button onclick="window._skipCam && window._skipCam()" style="padding:.4rem 1rem;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#64748b;border-radius:8px;cursor:pointer;font-size:.82rem;font-family:inherit;">Skip (No Camera)</button>
+                    </div>
+                </div>
+                <div class="modal-footer" style="text-align: center;">
+                    <button id="startExamBtn" class="btn-primary" disabled style="max-width: 240px; margin: 0 auto;">Start Exam</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Face Verification Modal (for identity enrollment) -->
+        <div id="faceVerificationModal" class="modal" style="display: none; z-index: 3001;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>🔐 Face Verification</h2>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">We need to verify your identity before the exam starts</p>
+                </div>
+                <div class="modal-body">
+                    <div id="faceVerificationSteps" style="text-align: center;">
+                        <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">Please look at the camera. We'll capture 3 clear face images for verification.</p>
+                        <div id="faceVerificationCamera" style="width: 100%; max-width: 400px; margin: 0 auto 1rem; aspect-ratio: 4/3; background: #000; border-radius: 12px; overflow: hidden; border: 3px solid var(--primary);">
+                            <video id="faceVerificationVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                        </div>
+                        <div id="faceVerificationProgress" style="margin: 1rem 0;">
+                            <p style="font-weight: bold; margin-bottom: 0.5rem;">Capturing face images...</p>
+                            <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                <div class="face-capture-dot" id="dot1"></div>
+                                <div class="face-capture-dot" id="dot2"></div>
+                                <div class="face-capture-dot" id="dot3"></div>
+                            </div>
+                            <p id="faceVerificationStatus" style="margin-top: 1rem; color: var(--warning); font-size: 0.9rem;">Waiting for clear face...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="text-align: center; gap: 1rem;">
+                    <button id="skipFaceVerificationBtn" class="btn-secondary" style="max-width: 150px;">Skip</button>
+                    <button id="startFaceVerificationBtn" class="btn-primary" style="max-width: 150px;">Start Capture</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Container (global, not inside any modal) -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <script src="exam.js"></script>
+</body>
+
+</html>

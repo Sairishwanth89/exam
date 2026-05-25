@@ -1,0 +1,71 @@
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: exam-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - exam-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Node.js Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    image: exam-backend:latest
+    container_name: exam-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - AI_SERVICE_URL=http://ai-proctor:5000
+      - MONGO_URI=mongodb://mongodb:27017/proctorguard
+      - JWT_SECRET=super-secret-key-change-this
+      - ADMIN_SECRET=ADMIN2026
+    depends_on:
+      ai-proctor:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - exam-network
+    restart: unless-stopped
+
+  # Python AI Proctoring Service
+  ai-proctor:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    image: exam-ai-proctor:latest
+    container_name: exam-ai-proctor
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+    networks:
+      - exam-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+networks:
+  exam-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  exam-data:

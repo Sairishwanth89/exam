@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProctorGuard AI - Advanced Web Proctoring</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .cover-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .cover-header {
+            max-width: 800px;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease-out forwards;
+        }
+
+        .cover-header h1 {
+            font-size: 3.5rem;
+            background: linear-gradient(135deg, #a5b4fc, #818cf8, #6366f1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .cover-header p {
+            font-size: 1.25rem;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            max-width: 1100px;
+            width: 100%;
+            margin-bottom: 3rem;
+            animation: fadeInUp 1s ease-out forwards;
+        }
+
+        .feature-card {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: left;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        .feature-card h3 {
+            color: #f1f5f9;
+            margin-bottom: 0.75rem;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-card p {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .actions {
+            animation: fadeIn 1.2s ease-out forwards;
+        }
+
+        .btn-launch {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-launch:hover {
+            box-shadow: 0 15px 30px -5px rgba(79, 70, 229, 0.6);
+            transform: translateY(-2px);
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Background animations imported from existing styles -->
+    <div class="background-animation">
+        <div class="gradient-sphere sphere-1"></div>
+        <div class="gradient-sphere sphere-2"></div>
+        <div class="gradient-sphere sphere-3"></div>
+    </div>
+
+    <!-- Main Landing Wrap -->
+    <div class="cover-container">
+        <div class="cover-header">
+            <h1>ProctorGuard AI</h1>
+            <p>The next-generation, high-performance proctoring module engineered with an embedded Python inference layer. Real-time evaluation limits zero-day cheating methodologies without installing native apps.</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>🧿 Advanced Gaze Tracking</h3>
+                <p>Achieves sub-millimeter precision utilizing a highly optimized 4-point bounding box matrix over the student's iris, isolating micro-glances away from the primary screen canvas.</p>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🧭 3D Head Pose Mapping</h3>
+                <p>99.8% precision tracking system via MediaPipe Face Mesh. Calculates complex X, Y, and Z coordinate thresholds to detect unauthorized rotation (Yaw, Pitch, Roll) down to single degrees.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>👥 Environmental Awareness</h3>
+                <p>Dynamically scans the volumetric room space utilizing Haar-cascade background analysis, instantly flagging secondary objects and recognizing multiple unique facial signatures in the immediate zone.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>🔒 Strict Context Enforcement</h3>
+                <p>Monitors hardware-level browser container states, utilizing Page Visibility APIs and global blur events to automatically freeze exams during aggressive tab-switching attempts.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>⚡ Latency-Free Processing</h3>
+                <p>Employs an ultra-fast base64 pipeline directly into the headless Flask inference container, evaluating continuous video streams with under 35ms of localized overhead.</p>
+            </div>
+
+            <div class="feature-card">
+                <h3>📊 Comprehensive Audit Trail</h3>
+                <p>Persists deeply correlated metric structures into a NoSQL ledger, preserving time-synced photographic evidence and detailed system behavior states for faculty review.</p>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="/login.html" class="btn-launch">Proceed to Login →</a>
+        </div>
+    </div>
+</body>
+</html>

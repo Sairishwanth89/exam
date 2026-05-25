@@ -1,0 +1,84 @@
+Project: AI-Proctored Exam Portal
+
+Overview:
+A lightweight exam portal with a Node.js/Express backend and a Python-based local AI proctoring service (OpenCV + MediaPipe). Frontend is static HTML/JS/CSS in `public/`. Data (users, answers, proctoring logs) is stored as JSON in `data/` at runtime. Dockerfiles and docker-compose are provided for easy deployment.
+
+Files (summary of each file inspected):
+
+- stop.bat: Windows script to stop Docker Compose and containers.
+
+- requirements.txt: Python dependencies for AI service: opencv-python, mediapipe, numpy, Pillow, flask, flask-cors.
+
+- README.md: Project overview, features, quick start (Docker + manual), API endpoints and usage, exam explanation, and proctoring notes.
+
+- PROCTORING_SETUP.md: Detailed technical guide for AI proctoring modules, thresholds, processing flow, Docker notes, data formats and troubleshooting.
+
+- package.json: Node backend metadata and dependencies: express, body-parser, cors, axios, jsonwebtoken. Scripts: `start` and `dev` (nodemon).
+
+- Dockerfile.python: Dockerfile for AI service (Python 3.10-slim). Installs system libs for OpenCV, copies `ai/`, installs `requirements.txt`, exposes port 5000, healthcheck, runs `python ai/processor.py`.
+
+- Dockerfile.node: Dockerfile for Node backend (node:18-alpine). Installs production Node deps, copies `server.js` and `public/`, creates `/app/data`, exposes 3000 and starts `node server.js`.
+
+- docker-compose.yml: Orchestrates two services: `backend` (port 3000) and `ai-proctor` (port 5000), shared network `exam-network`, mounts `./data` and `./public` into backend, defines restart policies and depends_on health checks.
+
+- .gitignore: Typical ignores (node_modules, __pycache__, *.pyc, .env, data/ etc.).
+
+- .env.example: Example environment variables (PORT, AI_SERVICE_URL, DATA_DIR, exam and proctoring thresholds).
+
+- server.js: Main Node/Express backend. Handles:
+  - `/api/register` and `/api/login` (creates users, issues JWTs; demo/backdoor admin exists)
+  - `/api/exam` (returns questions and duration)
+  - `/api/submit` (grades MCQs, saves `data/answers.json`)
+  - `/api/proctor/frame` (accepts base64 frames, forwards to AI service `/analyze`, stores analysis and flags in `data/proctoring.json`, implements contextual logic for warnings/termination)
+  - Uses JWTs for auth, stores JSON files in `data/`.
+  Note: passwords stored plaintext in JSON (demo). Backend forwards frames to the AI Flask service and applies policy logic (warnings, termination).
+
+- start.bat: Windows script to check Docker and docker-compose, then build and start containers via `docker-compose up -d --build`, shows demo credentials and opens browser.
+
+- rebuild.bat: Convenience script to stop, remove images (example names), rebuild and restart containers, then open the app URL.
+
+- ai/processor.py: Flask-based AI service. Endpoints:
+  - `/health` (health check)
+  - `/analyze` (accepts base64 frames, decodes to image, runs `FaceDetector`, `EyeTracker`, `HeadPoseEstimator`, returns flags and details)
+  Initializes `FaceDetector`, `EyeTracker`, `HeadPoseEstimator` from `ai/` modules.
+
+- ai/head_pose.py: HeadPoseEstimator using MediaPipe Face Mesh + OpenCV PnP. Computes yaw, pitch, roll, flags when thresholds exceeded.
+
+- ai/face_detection.py: FaceDetector using MediaPipe face detection. Returns face_detected, num_faces and average confidence.
+
+- ai/eye_tracking.py: EyeTracker using MediaPipe Face Mesh (iris landmarks) to compute gaze offset, normalized offset and returns `looking_away` and `gaze_direction`.
+
+- public/styles.css: Full styling for login, exam, dashboard and admin UI (visual theme variables, responsive layouts, animations). Large file containing the app's CSS.
+
+- public/signup.html: Signup page with form JS to `POST /api/register` and redirect to login on success.
+
+- public/index.html: Login page; includes role toggle (student/admin), stores JWT + username in sessionStorage on success, redirects to dashboard/exam/admin pages.
+
+- public/exam.js: Exam page logic. Loads exam via `/api/exam`, starts timer, initializes webcam, captures frames every 2.5s (canvas -> JPEG base64) and POSTs to `/api/proctor/frame` with `username`, `isAnswering`, `timestamp`. Handles responses (warnings, termination), submits answers to `/api/submit` and shows results. Implements suppression of transient proctor warnings while user is actively answering.
+
+- public/exam.html: Exam UI showing questions, timer, webcam preview, proctoring status, and result modal. Uses `exam.js`.
+
+- public/dashboard.html: Student dashboard listing assignments and buttons to start exam; simple auth guard using sessionStorage.
+
+- public/app.js: Login page logic; manages role selection, login POST to `/api/login`, stores token/user info in sessionStorage, redirects according to role.
+
+- public/admin.html: Admin dashboard UI and embedded JS to fetch admin data (`/api/admin/users` referenced by the UI), view proctoring reports via `/api/proctor/report/:username`, and reset users. Requires admin JWT.
+
+- data/ (runtime): `users.json`, `answers.json`, `proctoring.json` — stored in `./data` (mounted in docker-compose). These files are read/written by `server.js` and contain credentials (demo/plaintext), saved exam answers and proctoring logs/flags.
+
+Notes and security considerations observed while scanning:
+- Authentication uses JWTs but user passwords are stored plaintext in `data/users.json` (demo-only). Replace with hashed passwords for production.
+- No HTTPS enforced in repo; for production, enable HTTPS and secure env secrets.
+- AI processing is local (no external APIs), but MediaPipe/OpenCV have system dependencies (Dockerfile.python installs libs).
+- Proctoring thresholds and capture interval are configurable via code and `.env`.
+
+Created file:
+- [project_summary.txt](project_summary.txt)
+
+If you want, I can:
+- Commit `project_summary.txt` to git and open it for review.
+- Expand any file's summary with code snippets or line references.
+- Produce a README-compatible markdown instead of TXT.
+
+---
+Summary created on 2026-02-14.

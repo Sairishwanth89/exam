@@ -1,0 +1,43 @@
+# Python AI Proctoring Service Dockerfile
+FROM python:3.10-slim
+
+# Install system dependencies for OpenCV headless + MediaPipe CPU-only + dlib compilation
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libgl1 \
+    libgles2 \
+    libegl1 \
+    build-essential \
+    cmake \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Force MediaPipe to use CPU-only (no GPU/EGL context needed)
+ENV MEDIAPIPE_DISABLE_GPU=1
+ENV DISPLAY=''
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt ./
+
+# Install Python dependencies (with longer timeout for dlib compilation)
+RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
+
+# Copy AI modules
+COPY ai ./ai
+
+# Expose port
+EXPOSE 5000
+
+# Health check — allow 60s for MediaPipe to initialise before probing
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health').read()"
+
+# Start AI processor API
+CMD ["python", "ai/processor.py"]

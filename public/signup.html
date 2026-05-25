@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Portal - Sign Up</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>Create Account</h1>
+                <p>Join the AI-Powered Exam Portal</p>
+            </div>
+
+            <form id="signupForm" class="login-form">
+                <!-- Role Selection -->
+                <div class="form-group">
+                    <label>Register As</label>
+                    <div class="role-toggle">
+                        <button type="button" class="role-btn active" data-role="student" onclick="selectRole('student')">Student</button>
+                        <button type="button" class="role-btn" data-role="admin" onclick="selectRole('admin')">Admin</button>
+                    </div>
+                    <input type="hidden" id="selectedRole" value="student">
+                </div>
+
+                <div class="form-group">
+                    <label for="username">Choose Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Create Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter password" required autocomplete="new-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm password" required autocomplete="new-password">
+                </div>
+
+                <!-- Admin Code (shown only for admin role) -->
+                <div class="form-group" id="adminCodeGroup" style="display: none;">
+                    <label for="adminCode">Admin Secret Code <span style="color:#ef4444">*required</span></label>
+                    <input type="password" id="adminCode" name="adminCode" placeholder="Enter admin secret code" autocomplete="off">
+                    <div style="
+                        margin-top: 0.6rem;
+                        padding: 0.7rem 1rem;
+                        background: rgba(245,158,11,0.12);
+                        border: 1px solid rgba(245,158,11,0.35);
+                        border-radius: 10px;
+                        font-size: 0.8rem;
+                        color: #fcd34d;
+                        line-height: 1.5;
+                    ">
+                        ⚠️ <strong>You MUST enter the admin secret code</strong> to be registered as admin.<br>
+                        Without it, your account will be created as a <strong>Student</strong> instead.<br>
+                        <span style="color:#94a3b8; font-size:0.75rem">The secret code is: <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;color:#a5b4fc">ADMIN2026</code></span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary" id="signupBtn">
+                    <span>Create Account</span>
+                </button>
+
+                <div id="errorMessage" class="error-message"></div>
+                <div id="successMessage" class="success-message"></div>
+            </form>
+
+            <div class="login-footer">
+                <p>Already have an account? <a href="/"
+                        style="color: var(--primary); text-decoration: none; font-weight: 600;">Login here</a></p>
+            </div>
+        </div>
+
+        <div class="background-animation">
+            <div class="gradient-sphere sphere-1"></div>
+            <div class="gradient-sphere sphere-2"></div>
+            <div class="gradient-sphere sphere-3"></div>
+        </div>
+    </div>
+
+    <script>
+        function selectRole(role) {
+            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-role="${role}"]`).classList.add('active');
+            document.getElementById('selectedRole').value = role;
+            document.getElementById('adminCodeGroup').style.display = role === 'admin' ? 'block' : 'none';
+            document.getElementById('adminCode').required = (role === 'admin');
+        }
+
+        // Read role from URL query param (e.g. /signup.html?role=admin)
+        const urlRole = new URLSearchParams(window.location.search).get('role');
+        if (urlRole === 'admin') selectRole('admin');
+
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const adminCode = document.getElementById('adminCode').value.trim();
+            const role = document.getElementById('selectedRole').value;
+            const btn = document.getElementById('signupBtn');
+            const errorMsg = document.getElementById('errorMessage');
+            const successMsg = document.getElementById('successMessage');
+
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            if (password !== confirmPassword) {
+                showError('Passwords do not match');
+                return;
+            }
+
+            if (username.toLowerCase() === 'admin') {
+                showError('Username "admin" is reserved. Please choose a different username.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>Creating Account...</span>';
+
+            try {
+                const body = { username, password };
+                if (role === 'admin' && adminCode) body.adminCode = adminCode;
+
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(data.message + ' Redirecting to login...');
+                    setTimeout(() => window.location.href = '/', 1500);
+                } else {
+                    showError(data.error || 'Registration failed');
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Create Account</span>';
+                }
+            } catch (err) {
+                showError('Connection error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<span>Create Account</span>';
+            }
+
+            function showError(msg) {
+                errorMsg.textContent = msg;
+                errorMsg.style.display = 'block';
+                successMsg.style.display = 'none';
+            }
+
+            function showSuccess(msg) {
+                successMsg.textContent = msg;
+                successMsg.style.display = 'block';
+                errorMsg.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin – ProctorGuard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Variables ── */
+        :root {
+            --bg:      #0f172a;
+            --bg2:     #1e293b;
+            --bg3:     #334155;
+            --primary: #6366f1;
+            --danger:  #ef4444;
+            --success: #10b981;
+            --warn:    #f59e0b;
+            --text:    #f1f5f9;
+            --muted:   #94a3b8;
+            --border:  rgba(148,163,184,.15);
+            --shadow:  0 4px 24px rgba(0,0,0,.3);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+        /* ── Navbar ── */
+        .navbar {
+            background:rgba(15,23,42,.95);
+            backdrop-filter:blur(20px);
+            border-bottom:1px solid var(--border);
+            padding:.875rem 2rem;
+            display:flex;
+            align-items:center;
+            gap:1rem;
+            position:sticky;
+            top:0;
+            z-index:200;
+        }
+        .brand {
+            font-size:1.2rem;
+            font-weight:800;
+            background:linear-gradient(135deg,var(--primary),#ec4899);
+            -webkit-background-clip:text;
+            background-clip:text;
+            -webkit-text-fill-color:transparent;
+            margin-right:1.25rem;
+            flex-shrink:0;
+        }
+        .nav-tabs { display:flex; gap:.2rem; flex:1; }
+        .a-tab {
+            padding:.5rem 1.1rem;
+            border:none;
+            border-radius:10px;
+            background:transparent;
+            color:var(--muted);
+            font-size:.88rem;
+            font-weight:500;
+            cursor:pointer;
+            font-family:inherit;
+            transition:all .2s;
+        }
+        .a-tab:hover   { background:rgba(255,255,255,.07); color:var(--text); }
+        .a-tab.active  { background:rgba(99,102,241,.18);  color:var(--primary); font-weight:600; }
+        .nav-right { margin-left:auto; display:flex; align-items:center; gap:.75rem; }
+        .admin-badge {
+            background:rgba(99,102,241,.18);
+            border:1px solid rgba(99,102,241,.3);
+            border-radius:999px;
+            padding:.2rem .7rem;
+            font-size:.73rem;
+            font-weight:600;
+            color:var(--primary);
+        }
+        .admin-name-text { font-size:.83rem; color:var(--muted); }
+        .btn-logout {
+            background:transparent;
+            border:1px solid var(--border);
+            color:var(--muted);
+            padding:.4rem .875rem;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:.83rem;
+            font-family:inherit;
+            transition:all .2s;
+        }
+        .btn-logout:hover { border-color:var(--danger); color:#fca5a5; background:rgba(239,68,68,.07); }
+
+        /* ── Main ── */
+        .main       { flex:1; max-width:1100px; width:100%; margin:0 auto; padding:2rem 1.5rem; }
+        .a-page     { display:none; animation:fadeIn .3s; }
+        .a-page.active { display:block; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+        /* ── Section header ── */
+        .sec-hdr { margin-bottom:1.5rem; }
+        .sec-hdr h1 { font-size:1.4rem; font-weight:700; }
+        .sec-hdr p  { color:var(--muted); font-size:.85rem; margin-top:.25rem; }
+        .sec-hdr-row { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; }
+
+        /* ── Stats grid ── */
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+        .stat-card  { background:rgba(30,41,59,.65); border:1px solid var(--border); border-radius:14px; padding:1.25rem; }
+        .stat-val   { font-size:2.1rem; font-weight:700; line-height:1; }
+        .stat-lbl   { color:var(--muted); font-size:.77rem; margin-top:.35rem; }
+
+        /* ── Card ── */
+        .card { background:rgba(30,41,59,.55); border:1px solid var(--border); border-radius:14px; padding:1.5rem; margin-bottom:1.25rem; }
+        .card h2   { font-size:1rem; font-weight:700; margin-bottom:.25rem; }
+        .card .hint { color:var(--muted); font-size:.82rem; line-height:1.55; margin-bottom:1.25rem; }
+
+        /* ── Form ── */
+        .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem 1.2rem; }
+        .fg        { display:flex; flex-direction:column; gap:.35rem; }
+        .fg.full   { grid-column:1/-1; }
+        .fg label  { font-size:.8rem; font-weight:600; color:var(--muted); }
+        .fg input, .fg select, .fg textarea {
+            background:rgba(10,20,40,.75);
+            border:1px solid var(--border);
+            border-radius:10px;
+            padding:.6rem .875rem;
+            color:var(--text);
+            font-size:.88rem;
+            font-family:inherit;
+            outline:none;
+            transition:border-color .2s;
+            width:100%;
+        }
+        .fg input:focus, .fg select:focus, .fg textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+        .fg select option { background:#1e293b; }
+        .fg textarea { resize:vertical; min-height:150px; font-family:'Courier New',monospace; font-size:.8rem; line-height:1.55; }
+        .fg .hint-txt { font-size:.74rem; color:var(--muted); line-height:1.5; }
+
+        /* ── Buttons ── */
+        .btn-primary-a {
+            background:linear-gradient(135deg,#6366f1,#4f46e5);
+            color:#fff; border:none;
+            padding:.625rem 1.2rem;
+            border-radius:10px;
+            font-size:.88rem; font-weight:600; font-family:inherit;
+            cursor:pointer; transition:all .2s;
+        }
+        .btn-primary-a:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(99,102,241,.35); }
+        .btn-ghost {
+            background:rgba(255,255,255,.07);
+            border:1px solid var(--border);
+            color:var(--muted);
+            padding:.6rem 1rem;
+            border-radius:10px;
+            font-size:.85rem; font-weight:500; font-family:inherit;
+            cursor:pointer; transition:all .2s;
+        }
+        .btn-ghost:hover { background:rgba(255,255,255,.11); color:var(--text); }
+        .btn-primary-sm {
+            background:linear-gradient(135deg,#6366f1,#4f46e5);
+            color:#fff; border:none;
+            padding:.45rem .875rem;
+            border-radius:8px;
+            font-size:.82rem; font-weight:600; font-family:inherit;
+            cursor:pointer; margin-top:.5rem;
+        }
+        .btn-delete {
+            background:rgba(239,68,68,.13);
+            border:1px solid rgba(239,68,68,.22);
+            color:#fca5a5;
+            padding:.3rem .7rem;
+            border-radius:8px;
+            font-size:.78rem; font-family:inherit; font-weight:500;
+            cursor:pointer; flex-shrink:0; transition:all .2s;
+        }
+        .btn-delete:hover { background:rgba(239,68,68,.25); }
+        .form-actions { display:flex; gap:.75rem; align-items:center; margin-top:1.25rem; flex-wrap:wrap; }
+
+        /* ── Form message ── */
+        .form-msg { font-size:.82rem; font-weight:500; padding:.35rem .75rem; border-radius:8px; display:none; }
+        .form-msg.ok  { background:rgba(16,185,129,.15); color:#6ee7b7; }
+        .form-msg.err { background:rgba(239,68,68,.15);  color:#fca5a5; }
+
+        /* ── JSON helper strip ── */
+        .json-strip { display:flex; gap:.5rem; margin-top:.4rem; }
+        .btn-tiny {
+            background:rgba(255,255,255,.06);
+            border:1px solid var(--border);
+            color:var(--muted);
+            padding:.25rem .65rem;
+            border-radius:7px;
+            font-size:.75rem; font-family:inherit;
+            cursor:pointer; transition:all .2s;
+        }
+        .btn-tiny:hover { background:rgba(255,255,255,.12); color:var(--text); }
+
+        /* ── Exam list ── */
+        .exam-row {
+            display:flex; align-items:center; gap:1rem;
+            background:rgba(15,23,42,.5);
+            border:1px solid var(--border);
+            border-radius:12px;
+            padding:1rem 1.25rem;
+            margin-bottom:.75rem;
+            transition:border-color .2s;
+        }
+        .exam-row:hover { border-color:rgba(99,102,241,.3); }
+        .exam-bdg {
+            padding:.22rem .7rem;
+            border-radius:999px; font-size:.7rem; font-weight:700; letter-spacing:.06em;
+            background:rgba(99,102,241,.18); color:#a5b4fc;
+            border:1px solid rgba(99,102,241,.22); flex-shrink:0;
+        }
+        .exam-info   { flex:1; min-width:0; }
+        .exam-title  { font-weight:600; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .exam-meta   { font-size:.75rem; color:var(--muted); margin-top:.2rem; }
+        .chip-active   { background:rgba(16,185,129,.15); color:#6ee7b7; border:1px solid rgba(16,185,129,.2); padding:.15rem .55rem; border-radius:6px; font-size:.7rem; font-weight:600; flex-shrink:0; }
+        .chip-inactive { background:rgba(100,116,139,.13); color:var(--muted); border:1px solid rgba(100,116,139,.18); padding:.15rem .55rem; border-radius:6px; font-size:.7rem; font-weight:600; flex-shrink:0; }
+
+        /* ── Students table ── */
+        .table-wrap { overflow-x:auto; background:rgba(30,41,59,.5); border:1px solid var(--border); border-radius:14px; }
+        table { width:100%; border-collapse:collapse; font-size:.85rem; }
+        th  { background:rgba(15,23,42,.55); color:var(--muted); font-weight:600; font-size:.77rem; text-align:left; padding:.75rem 1rem; border-bottom:1px solid var(--border); }
+        td  { padding:.7rem 1rem; border-bottom:1px solid rgba(255,255,255,.04); }
+        .pill { padding:.2rem .65rem; border-radius:999px; font-size:.7rem; font-weight:600; }
+        .pill-active     { background:rgba(245,158,11,.15); color:#fcd34d; }
+        .pill-finished   { background:rgba(99,102,241,.15); color:#a5b4fc; }
+        .pill-terminated { background:rgba(239,68,68,.15);  color:#fca5a5; }
+        .btn-xs {
+            padding:.25rem .6rem; border-radius:7px;
+            font-size:.74rem; font-family:inherit; font-weight:500;
+            cursor:pointer; border:1px solid transparent; transition:all .2s; margin-right:.25rem;
+        }
+        .btn-xs-blue { background:rgba(99,102,241,.15); color:#a5b4fc; border-color:rgba(99,102,241,.2); }
+        .btn-xs-warn { background:rgba(245,158,11,.15); color:#fcd34d; border-color:rgba(245,158,11,.2); }
+        .muted-text  { color:var(--muted); font-size:.79rem; }
+        .empty-cell  { color:var(--muted); text-align:center; padding:2rem; }
+
+        /* ── States ── */
+        .loading-text { color:var(--muted); text-align:center; padding:2rem; }
+        .err-text     { color:#fca5a5; text-align:center; padding:2rem; }
+        .empty-state  { text-align:center; padding:3rem 2rem; color:var(--muted); }
+        .empty-icon   { font-size:3rem; margin-bottom:.75rem; }
+
+        /* ── Modal ── */
+        .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(6px); z-index:500; align-items:center; justify-content:center; }
+        .overlay.open { display:flex; }
+        .modal {
+            background:var(--bg2);
+            border:1px solid var(--border);
+            border-radius:16px;
+            padding:1.75rem;
+            width:90%; max-width:620px;
+            max-height:82vh; overflow-y:auto;
+            animation:fadeIn .25s;
+        }
+        .modal-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; }
+        .modal-hdr h3 { font-size:1rem; font-weight:700; }
+        .log-entry { border-left:3px solid var(--danger); background:rgba(239,68,68,.06); border-radius:0 8px 8px 0; padding:.65rem .875rem; margin-bottom:.6rem; }
+        .log-ts  { font-size:.72rem; color:var(--muted); margin-bottom:.25rem; }
+        .log-msg { font-weight:500; color:#fca5a5; font-size:.85rem; }
+        .evidence-img { max-width:100%; border-radius:8px; margin-top:.5rem; border:1px solid var(--border); }
+        /* ── Question Builder styles ── */
+        .badge-opt {
+            background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--muted);
+            padding:.3rem .75rem;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;
+            font-family:inherit;transition:all .2s;
+        }
+        .badge-opt:hover { background:rgba(99,102,241,.15);color:var(--primary);border-color:rgba(99,102,241,.3); }
+        .badge-opt.active { background:rgba(99,102,241,.25);color:#a5b4fc;border-color:rgba(99,102,241,.5); }
+        .q-card {
+            background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.12);border-radius:12px;
+            padding:.875rem 1rem;transition:border-color .2s;position:relative;
+        }
+        .q-card:hover { border-color:rgba(99,102,241,.3); }
+        .q-card-header { display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem; }
+        .q-num { width:22px;height:22px;border-radius:50%;background:rgba(99,102,241,.25);color:#a5b4fc;font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+        .q-type-badge { font-size:.65rem;font-weight:700;padding:.1rem .4rem;border-radius:5px; }
+        .q-type-mcq   { background:rgba(16,185,129,.18);color:#6ee7b7; }
+        .q-type-short { background:rgba(245,158,11,.18);color:#fcd34d; }
+        .q-input { width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(148,163,184,.12);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.85rem;font-family:inherit;outline:none;transition:border-color .2s; }
+        .q-input:focus { border-color:rgba(99,102,241,.5); }
+        .opt-row { display:flex;align-items:center;gap:.4rem;margin-top:.35rem; }
+        .opt-radio { width:14px;height:14px;cursor:pointer;accent-color:#6366f1; }
+        .opt-del { background:none;border:none;color:#64748b;cursor:pointer;font-size:.85rem;padding:0 .2rem;transition:color .2s; }
+        .opt-del:hover { color:#fca5a5; }
+        .btn-add-opt { background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.12);color:var(--muted);padding:.3rem .75rem;border-radius:7px;font-size:.75rem;cursor:pointer;font-family:inherit;margin-top:.35rem;transition:all .2s; }
+        .btn-add-opt:hover { background:rgba(99,102,241,.1);color:var(--primary);border-color:rgba(99,102,241,.3); }
+        .btn-del-q { position:absolute;top:.6rem;right:.75rem;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.2);color:#fca5a5;padding:.2rem .5rem;border-radius:6px;font-size:.72rem;cursor:pointer;font-family:inherit;transition:all .2s; }
+        .btn-del-q:hover { background:rgba(239,68,68,.25); }
+        /* ── Admin cs-pill ── */
+        .cs-pill { display:inline-block; padding:.15rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; }
+        .cs-pill-safe   { background:rgba(16,185,129,.15); color:#6ee7b7; border:1px solid rgba(16,185,129,.2); }
+        .cs-pill-warn   { background:rgba(245,158,11,.15); color:#fcd34d; border:1px solid rgba(245,158,11,.2); }
+        .cs-pill-danger { background:rgba(239,68,68,.15);  color:#fca5a5; border:1px solid rgba(239,68,68,.2); }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <span class="brand">ProctorGuard</span>
+    <div class="nav-tabs">
+        <button class="a-tab active" data-page="dashboard"   onclick="ADMIN.go('dashboard')">📊 Dashboard</button>
+        <button class="a-tab"        data-page="createExam"  onclick="ADMIN.go('createExam')">➕ Create Exam</button>
+        <button class="a-tab"        data-page="manageExams" onclick="ADMIN.go('manageExams')">📋 Manage Exams</button>
+        <button class="a-tab"        data-page="students"    onclick="ADMIN.go('students')">👥 Students</button>
+    </div>
+    <div class="nav-right">
+        <span class="admin-badge">Admin</span>
+        <span class="admin-name-text" id="adminName"></span>
+        <button class="btn-logout" onclick="ADMIN.logout()">Log out</button>
+    </div>
+</nav>
+
+<div class="main">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="a-page active" id="page-dashboard">
+        <div class="sec-hdr">
+            <h1>Dashboard</h1>
+            <p>Exam portal overview</p>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-val" id="s-students">—</div><div class="stat-lbl">Total Students</div></div>
+            <div class="stat-card"><div class="stat-val" id="s-active">—</div><div class="stat-lbl">Active in Exam</div></div>
+            <div class="stat-card"><div class="stat-val" id="s-sessions">—</div><div class="stat-lbl">Exam Sessions</div></div>
+            <div class="stat-card"><div class="stat-val" style="color:#fca5a5" id="s-term">—</div><div class="stat-lbl">Terminated</div></div>
+        </div>
+        <div class="card">
+            <h2>How it works</h2>
+            <p class="hint">
+                1. Go to <strong>Create Exam</strong> — fill in the details and paste your questions JSON.<br>
+                2. Click <strong>Publish Exam</strong> — it appears on every student's dashboard immediately.<br>
+                3. Students attempt it under live proctoring — violations are captured with photos.<br>
+                4. View scores and evidence under <strong>Students</strong>.
+            </p>
+        </div>
+    </div>
+
+    <!-- ═══ CREATE EXAM ═══ -->
+    <div class="a-page" id="page-createExam">
+        <div class="sec-hdr-row">
+            <div class="sec-hdr" style="margin-bottom:0">
+                <h1>✨ Create Exam</h1>
+                <p>Build your exam visually — questions, options, and timer — no JSON required</p>
+            </div>
+            <span class="form-msg" id="create-msg" style="align-self:center"></span>
+        </div>
+
+        <!-- Step 1: Exam Details -->
+        <div class="card" style="border:1px solid rgba(99,102,241,.25);background:linear-gradient(135deg,rgba(99,102,241,.07),rgba(30,41,59,.55));">
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
+                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">1</div>
+                <h2 style="margin:0">Exam Details</h2>
+            </div>
+            <div class="form-grid">
+                <div class="fg">
+                    <label>📝 Exam Title *</label>
+                    <input type="text" id="f-title" placeholder="e.g. Operating Systems — Mid Sem">
+                </div>
+                <div class="fg">
+                    <label>🏷️ Course Code</label>
+                    <input type="text" id="f-code" placeholder="e.g. CS301">
+                </div>
+                <div class="fg">
+                    <label>🎖️ Type</label>
+                    <div style="display:flex;gap:.4rem;flex-wrap:wrap;" id="badge-picker">
+                        <button class="badge-opt active" data-val="EXAM">EXAM</button>
+                        <button class="badge-opt" data-val="QUIZ">QUIZ</button>
+                        <button class="badge-opt" data-val="ASSIGNMENT">ASSIGNMENT</button>
+                        <button class="badge-opt" data-val="LAB">LAB</button>
+                        <button class="badge-opt" data-val="PROJECT">PROJECT</button>
+                    </div>
+                    <input type="hidden" id="f-badge" value="EXAM">
+                </div>
+                <div class="fg">
+                    <label>⏱️ Duration: <strong id="dur-display" style="color:var(--primary)">30 min</strong></label>
+                    <input type="range" id="f-duration" min="5" max="180" step="5" value="30"
+                        style="width:100%;accent-color:#6366f1;cursor:pointer;"
+                        oninput="document.getElementById('dur-display').textContent=this.value+' min'">
+                    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)"><span>5 min</span><span>3 hrs</span></div>
+                </div>
+                <div class="fg">
+                    <label>📅 Start Time <span style="color:var(--muted);font-weight:400">(blank = open now)</span></label>
+                    <input type="datetime-local" id="f-start">
+                </div>
+                <div class="fg">
+                    <label>⏰ End / Due Time <span style="color:var(--muted);font-weight:400">(blank = no deadline)</span></label>
+                    <input type="datetime-local" id="f-end">
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Question Builder -->
+        <div class="card" style="border:1px solid rgba(16,185,129,.2);background:linear-gradient(135deg,rgba(16,185,129,.05),rgba(30,41,59,.55));">
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
+                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">2</div>
+                <h2 style="margin:0">Questions</h2>
+                <span id="q-count-badge" style="background:rgba(16,185,129,.18);color:#6ee7b7;border:1px solid rgba(16,185,129,.25);padding:.15rem .55rem;border-radius:999px;font-size:.72rem;font-weight:700;margin-left:.25rem;">0 questions</span>
+                <div style="margin-left:auto;display:flex;gap:.4rem;">
+                    <button class="btn-tiny" onclick="BUILDER.addQ('mcq')" title="Add MCQ">➕ MCQ</button>
+                    <button class="btn-tiny" onclick="BUILDER.addQ('short')" title="Add Short Answer">➕ Short</button>
+                    <button class="btn-tiny" onclick="BUILDER.loadExample()" title="Load example">📄 Example</button>
+                </div>
+            </div>
+            <div id="q-builder-list" style="display:flex;flex-direction:column;gap:.75rem;min-height:60px;">
+                <div id="q-empty-state" style="text-align:center;padding:2rem;color:var(--muted);border:2px dashed rgba(255,255,255,.08);border-radius:12px;">
+                    <div style="font-size:2rem;margin-bottom:.5rem;">📋</div>
+                    <div>Click <strong style="color:var(--text)">➕ MCQ</strong> or <strong style="color:var(--text)">➕ Short</strong> to add your first question</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Publish -->
+        <div class="card" style="border:1px solid rgba(236,72,153,.2);background:linear-gradient(135deg,rgba(236,72,153,.05),rgba(30,41,59,.55));">
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
+                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#ec4899,#db2777);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">3</div>
+                <h2 style="margin:0">Review & Publish</h2>
+            </div>
+            <div id="exam-preview" style="background:rgba(0,0,0,.2);border-radius:10px;padding:.875rem 1rem;font-size:.83rem;color:var(--muted);margin-bottom:1rem;">
+                Fill in details and add questions to see the preview here.
+            </div>
+            <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+                <button class="btn-primary-a" onclick="ADMIN.publishExam()">🚀 Publish Exam</button>
+                <button class="btn-ghost" onclick="ADMIN.clearForm()">🗑️ Clear All</button>
+                <button class="btn-ghost" onclick="BUILDER.showJSON()">{ } View JSON</button>
+            </div>
+        </div>
+
+        <!-- JSON raw view modal (for copy/paste) -->
+        <div id="json-view-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:600;align-items:center;justify-content:center;">
+            <div style="background:#1e293b;border:1px solid rgba(148,163,184,.15);border-radius:16px;padding:1.5rem;width:90%;max-width:700px;max-height:80vh;overflow-y:auto;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
+                    <strong>Generated Questions JSON</strong>
+                    <button class="btn-tiny" onclick="document.getElementById('json-view-overlay').style.display='none'">✕ Close</button>
+                </div>
+                <pre id="json-view-content" style="font-size:.78rem;color:#6ee7b7;white-space:pre-wrap;background:rgba(0,0,0,.3);padding:1rem;border-radius:8px;overflow-x:auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MANAGE EXAMS ═══ -->
+    <div class="a-page" id="page-manageExams">
+        <div class="sec-hdr-row">
+            <div class="sec-hdr" style="margin-bottom:0">
+                <h1>Manage Exams</h1>
+                <p>All published exam sessions</p>
+            </div>
+            <button class="btn-ghost" onclick="ADMIN.loadExams()">↻ Refresh</button>
+        </div>
+        <div id="exam-list">
+            <p class="loading-text">Loading...</p>
+        </div>
+    </div>
+
+    <!-- ═══ STUDENTS ═══ -->
+    <div class="a-page" id="page-students">
+        <div class="sec-hdr-row">
+            <div class="sec-hdr" style="margin-bottom:0">
+                <h1>Students</h1>
+                <p>Live proctoring monitor (auto-refreshes every 8s)</p>
+            </div>
+            <button class="btn-ghost" onclick="ADMIN.loadStudents()">↻ Refresh</button>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Violations</th>
+                        <th>Last Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="student-tbody">
+                    <tr><td colspan="6" class="empty-cell">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div><!-- /main -->
+
+<!-- Proctoring Logs Modal -->
+<div class="overlay" id="logs-modal">
+    <div class="modal">
+        <div class="modal-hdr">
+            <h3>Proctoring Logs — <span id="modal-student"></span></h3>
+            <button class="btn-tiny" onclick="ADMIN.closeModal()">✕ Close</button>
+        </div>
+        <div id="modal-body"></div>
+    </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>

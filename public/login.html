@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Portal - Login</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>Exam Portal</h1>
+                <p>AI-Powered Proctoring System</p>
+            </div>
+
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label>Login As</label>
+                    <div class="role-toggle">
+                        <button type="button" class="role-btn active" data-role="student">Student</button>
+                        <button type="button" class="role-btn" data-role="admin">Admin</button>
+                    </div>
+                    <input type="hidden" id="role" name="role" value="student">
+                </div>
+
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter your username" required
+                        autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required
+                        autocomplete="current-password">
+                </div>
+
+                <div class="form-group" id="adminCodeGroup" style="display:none;">
+                    <label for="adminCode">🔐 Admin Secret Code</label>
+                    <input type="password" id="adminCode" name="adminCode" placeholder="Enter admin secret code"
+                        autocomplete="off">
+                    <p style="font-size:.78rem;color:#64748b;margin-top:.35rem;">Required for admin access only</p>
+                </div>
+
+                <button type="submit" class="btn-primary" id="loginBtn">
+                    <span>Login</span>
+                </button>
+
+                <div id="errorMessage" class="error-message"></div>
+                <div id="successMessage" class="success-message"></div>
+            </form>
+
+            <div class="login-footer">
+                <p><strong>New User?</strong> <a id="signupLink" href="/signup.html"
+                    style="color: var(--primary); text-decoration: none; font-weight: 600;">Create an Account</a>
+                </p>
+                
+            </div>
+        </div>
+
+        <div class="background-animation">
+            <div class="gradient-sphere sphere-1"></div>
+            <div class="gradient-sphere sphere-2"></div>
+            <div class="gradient-sphere sphere-3"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

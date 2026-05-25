@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProctorGuard – Student Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ── Navbar ── */
+        .s-navbar {
+            background:rgba(15,23,42,.95);
+            backdrop-filter:blur(20px);
+            border-bottom:1px solid var(--glass-border, rgba(255,255,255,.08));
+            padding:.875rem 2rem;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            position:sticky;
+            top:0;
+            z-index:100;
+        }
+        .s-brand {
+            font-size:1.2rem;
+            font-weight:800;
+            background:linear-gradient(135deg,#6366f1,#ec4899);
+            -webkit-background-clip:text;
+            background-clip:text;
+            -webkit-text-fill-color:transparent;
+        }
+        .s-user { color:var(--text-secondary,#94a3b8); font-weight:500; font-size:.88rem; cursor:pointer; }
+        .s-user span { color:#6366f1; font-weight:700; }
+        .s-user:hover { color:var(--text,#f1f5f9); }
+
+        /* ── Container ── */
+        .s-container { max-width:900px; margin:2rem auto; padding:0 1.5rem; }
+
+        /* ── Tabs ── */
+        .s-tabs { display:flex; border-bottom:2px solid rgba(255,255,255,.08); margin-bottom:2rem; gap:0; }
+        .s-tab {
+            padding:.7rem 1.4rem;
+            background:transparent;
+            border:none;
+            border-bottom:3px solid transparent;
+            margin-bottom:-2px;
+            color:#94a3b8;
+            font-size:.9rem;
+            font-weight:500;
+            cursor:pointer;
+            font-family:inherit;
+            transition:all .2s;
+        }
+        .s-tab.active { color:#6366f1; border-bottom-color:#6366f1; }
+        .s-tab:hover:not(.active) { color:#f1f5f9; }
+
+        /* ── Panels ── */
+        .s-panel { display:none; animation:fadeIn .3s; }
+        .s-panel.active { display:block; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+        /* ── States ── */
+        .empty-state { text-align:center; padding:4rem 2rem; color:#94a3b8; }
+        .empty-icon  { font-size:3.5rem; margin-bottom:.75rem; }
+        .empty-title { font-size:1rem; font-weight:600; color:#f1f5f9; margin-bottom:.25rem; }
+        .empty-sub   { font-size:.83rem; margin:.2rem 0; }
+        .loading-state { text-align:center; padding:3rem; color:#94a3b8; display:flex; flex-direction:column; align-items:center; gap:.75rem; }
+        .loader { width:32px; height:32px; border:3px solid rgba(99,102,241,.2); border-top-color:#6366f1; border-radius:50%; animation:spin .7s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .btn-retry {
+            margin-top:.5rem;
+            background:#6366f1; color:#fff; border:none;
+            padding:.5rem 1rem; border-radius:8px;
+            font-size:.83rem; font-family:inherit; font-weight:600;
+            cursor:pointer;
+        }
+
+        /* ── Assignment Cards ── */
+        .card-list { display:flex; flex-direction:column; gap:1rem; }
+        .a-card {
+            display:flex; align-items:stretch;
+            background:rgba(30,41,59,.6);
+            border:1px solid rgba(255,255,255,.08);
+            border-radius:16px; overflow:hidden;
+            transition:border-color .25s, transform .2s;
+        }
+        .a-card:hover { border-color:rgba(99,102,241,.45); transform:translateY(-2px); }
+        .a-card-left {
+            width:155px; flex-shrink:0;
+            background:rgba(0,0,0,.18);
+            border-right:1px solid rgba(255,255,255,.08);
+            display:flex; flex-direction:column;
+            align-items:center; justify-content:center;
+            padding:1.25rem .75rem; gap:.6rem; text-align:center;
+        }
+        .course-code { font-weight:600; font-size:.85rem; color:#f1f5f9; }
+        .badge-pill {
+            padding:.25rem .75rem; border-radius:999px;
+            font-size:.68rem; font-weight:700; letter-spacing:.07em;
+            background:rgba(99,102,241,.2); color:#a5b4fc;
+            border:1px solid rgba(99,102,241,.25);
+        }
+        .a-card-body { flex:1; padding:1.2rem 1.4rem; display:flex; flex-direction:column; justify-content:space-between; }
+        .a-card-title { font-size:.95rem; font-weight:700; text-transform:uppercase; letter-spacing:.02em; margin-bottom:.6rem; }
+        .a-card-chips { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.75rem; }
+        .chip { font-size:.7rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.09); padding:.18rem .55rem; border-radius:6px; color:#94a3b8; }
+        .a-card-footer { display:flex; justify-content:flex-end; align-items:center; gap:1rem; flex-wrap:wrap; }
+        .status-row { display:flex; align-items:center; gap:.35rem; font-size:.78rem; font-weight:600; }
+        .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .dot-active   { background:#f59e0b; box-shadow:0 0 6px #f59e0b; }
+        .dot-upcoming { background:#6366f1; }
+        .dot-ended    { background:#6b7280; }
+        .due-text { font-size:.76rem; color:#94a3b8; flex:1; text-align:right; }
+        .btn-attempt {
+            background:linear-gradient(135deg,#ec4899,#8b5cf6);
+            color:#fff; border:none;
+            padding:.5rem 1.1rem; border-radius:10px;
+            font-weight:700; font-size:.8rem; cursor:pointer;
+            font-family:inherit; letter-spacing:.04em;
+            transition:all .2s; flex-shrink:0;
+        }
+        .btn-attempt:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 16px rgba(236,72,153,.3); }
+        .btn-attempt:disabled { opacity:.4; cursor:not-allowed; }
+
+        /* ── Results ── */
+        .result-card {
+            background:rgba(30,41,59,.6);
+            border:1px solid rgba(255,255,255,.08);
+            border-radius:16px; padding:2rem;
+        }
+        .result-header { display:flex; align-items:center; gap:2rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+        .score-ring {
+            width:110px; height:110px; border-radius:50%;
+            background:linear-gradient(135deg,#6366f1,#8b5cf6);
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            flex-shrink:0;
+            box-shadow:0 8px 24px rgba(99,102,241,.4);
+        }
+        .score-pct { font-size:1.7rem; font-weight:700; color:#fff; }
+        .score-sub { font-size:.68rem; color:rgba(255,255,255,.75); }
+        .result-meta h2 { font-size:1.1rem; font-weight:700; margin-bottom:.4rem; }
+        .result-meta p  { font-size:.86rem; color:#94a3b8; margin:.18rem 0; }
+        .verdict-row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin-top:.5rem; }
+        .verdict { padding:.3rem .875rem; border-radius:999px; font-weight:700; font-size:.82rem; }
+        .verdict-pass { background:rgba(16,185,129,.18); color:#6ee7b7; border:1px solid rgba(16,185,129,.22); }
+        .verdict-fail { background:rgba(239,68,68,.18); color:#fca5a5; border:1px solid rgba(239,68,68,.22); }
+        .risk-badge   { padding:.22rem .7rem; border-radius:999px; font-size:.76rem; font-weight:600; }
+        .risk-NONE,.risk-LOW    { background:rgba(16,185,129,.15); color:#6ee7b7; border:1px solid rgba(16,185,129,.2); }
+        .risk-MEDIUM            { background:rgba(245,158,11,.15); color:#fcd34d; border:1px solid rgba(245,158,11,.2); }
+        .risk-HIGH              { background:rgba(239,68,68,.15);  color:#fca5a5; border:1px solid rgba(239,68,68,.2); }
+
+        /* ── Proof items ── */
+        .proof-section { margin-top:1.25rem; }
+        .proof-title { font-size:.88rem; color:#94a3b8; font-weight:600; margin-bottom:.6rem; }
+        .proof-item {
+            background:rgba(15,23,42,.65);
+            border:1px solid rgba(255,255,255,.07);
+            border-left:3px solid #ef4444;
+            border-radius:0 10px 10px 0;
+            padding:.8rem 1rem;
+            margin-bottom:.6rem;
+        }
+        .proof-item.warning { border-left-color:#f59e0b; }
+        .proof-ts  { font-size:.72rem; color:#94a3b8; margin-bottom:.3rem; }
+        .proof-msg { font-weight:500; font-size:.84rem; margin-bottom:.4rem; color:#fca5a5; }
+        .proof-item.warning .proof-msg { color:#fcd34d; }
+        .proof-img { max-width:100%; border-radius:8px; border:1px solid rgba(255,255,255,.08); }
+    </style>
+</head>
+<body style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh;">
+
+    <!-- NAVBAR -->
+    <nav class="s-navbar">
+        <span class="s-brand">ProctorGuard</span>
+        <span class="s-user" onclick="STUDENT.logout()">
+            Log out <span id="student-name"></span>
+        </span>
+    </nav>
+
+    <!-- CONTENT -->
+    <div class="s-container">
+
+        <!-- Tabs -->
+        <div class="s-tabs">
+            <button class="s-tab active" data-tab="assign"  onclick="STUDENT.switchTab('assign')">📋 Assignments</button>
+            <button class="s-tab"        data-tab="results" onclick="STUDENT.switchTab('results')">📊 Results</button>
+        </div>
+
+        <!-- Assignments Panel -->
+        <div class="s-panel active" id="panel-assign">
+            <div class="card-list" id="assign-list">
+                <div class="loading-state">
+                    <span class="loader"></span>
+                    <p>Loading assignments...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="s-panel" id="panel-results">
+            <div id="results-body">
+                <div class="loading-state">
+                    <span class="loader"></span>
+                    <p>Loading results...</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Load student logic -->
+    <script src="student.js"></script>
+</body>
+</html>
