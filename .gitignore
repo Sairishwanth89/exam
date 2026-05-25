@@ -49,3 +49,7 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+
+# Local HTTPS certificates
+localhost+1.pem
+localhost+1-key.pem

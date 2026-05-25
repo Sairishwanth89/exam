@@ -72,7 +72,7 @@
             </form>
 
             <div class="login-footer">
-                <p>Already have an account? <a href="/"
+                <p>Already have an account? <a href="/login.html"
                         style="color: var(--primary); text-decoration: none; font-weight: 600;">Login here</a></p>
             </div>
         </div>
@@ -138,7 +138,7 @@
 
                 if (response.ok) {
                     showSuccess(data.message + ' Redirecting to login...');
-                    setTimeout(() => window.location.href = '/', 1500);
+                    setTimeout(() => window.location.href = '/login.html', 1500);
                 } else {
                     showError(data.error || 'Registration failed');
                     btn.disabled = false;

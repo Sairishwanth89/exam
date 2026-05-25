@@ -68,6 +68,8 @@ GAZE_CONFIRM_FRAMES    = 15  # Frames of looking-away before gaze flag fires
 COOLDOWN_FRAMES        = 15  # Frames to suppress re-logging the same violation type
 FACE_MISMATCH_CONFIRM_FRAMES = 2  # Frames of face mismatch before flagging identity change
 FACE_MISMATCH_IMMEDIATE_DISTANCE = 0.12  # Extra gap above threshold for immediate mismatch flag
+MAX_YAW_FOR_FACE_MATCH = 28.0     # Do not perform strict face mismatch while head is strongly turned
+MAX_PITCH_FOR_FACE_MATCH = 22.0   # Do not perform strict face mismatch while looking too far up/down
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -86,12 +88,31 @@ class DeviceDetector:
     PHONE_ASPECT_MIN      = 1.3     # Minimum aspect ratio (portrait phone)
     PHONE_ASPECT_MAX      = 4.5     # Maximum aspect ratio
     PHONE_BRIGHTNESS_LOW  = 180     # V-channel (HSV) threshold for bright screen
+    PHONE_EDGE_MIN_AREA_RATIO = 0.008
+    PHONE_EDGE_MAX_AREA_RATIO = 0.40
+    PHONE_EDGE_RECT_RATIO     = 0.55
+    PHONE_EDGE_ASPECT_MIN     = 1.1
+    PHONE_EDGE_ASPECT_MAX     = 6.0
+    PHONE_EDGE_MIN_CONF       = 0.30
 
     EARBUD_MIN_AREA       = 60      # min blob pixel area
     EARBUD_MAX_AREA       = 800     # max blob pixel area
     EARBUD_CIRCULARITY    = 0.55    # how circular the blob must be
     EARBUD_PAIR_DIST_MAX  = 200     # max pixel dist between paired earbuds
     EARBUD_MIN_BRIGHTNESS = 160     # reflective plastic brightness
+    HEADPHONE_MIN_RADIUS      = 18
+    HEADPHONE_MAX_RADIUS      = 140
+    HEADPHONE_MIN_PAIR_DIST   = 90
+    HEADPHONE_MAX_PAIR_DIST   = 520
+    HEADPHONE_MAX_Y_DELTA      = 90
+
+    WATCH_MIN_AREA_RATIO      = 0.0006
+    WATCH_MAX_AREA_RATIO      = 0.020
+    WATCH_ASPECT_MIN          = 0.70
+    WATCH_ASPECT_MAX          = 2.20
+    WATCH_RECT_MIN            = 0.50
+    WATCH_SOLIDITY_MIN        = 0.50
+    WATCH_BRIGHTNESS_LOW      = 145
 
     def detect(self, image: np.ndarray) -> dict:
         """
@@ -104,8 +125,10 @@ class DeviceDetector:
         h, w = image.shape[:2]
         frame_area = h * w
 
-        phone_detected  = self._detect_phone(image, h, w, frame_area)
-        earbud_detected = self._detect_earbuds(image)
+        phone_detected     = self._detect_phone(image, h, w, frame_area)
+        headphone_detected  = self._detect_headphones(image, h, w)
+        watch_detected      = self._detect_watch_or_wearable(image, h, w, frame_area)
+        earbud_detected     = self._detect_earbuds(image)
 
         if phone_detected['found']:
             return {
@@ -113,6 +136,20 @@ class DeviceDetector:
                 'device_type':     'phone_or_screen',
                 'device_count':    phone_detected['count'],
                 'confidence':      min(1.0, phone_detected['confidence'])
+            }
+        if headphone_detected['found']:
+            return {
+                'device_detected': True,
+                'device_type':     'headphone_or_headset',
+                'device_count':    headphone_detected['count'],
+                'confidence':      min(1.0, headphone_detected['confidence'])
+            }
+        if watch_detected['found']:
+            return {
+                'device_detected': True,
+                'device_type':     'watch_or_wearable',
+                'device_count':    watch_detected['count'],
+                'confidence':      min(1.0, watch_detected['confidence'])
             }
         if earbud_detected['found']:
             return {
@@ -134,8 +171,8 @@ class DeviceDetector:
             bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_CLOSE, kernel)
             bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_OPEN,  kernel)
 
+            candidates = []
             contours, _ = cv2.findContours(bright_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            found_rects = []
             for cnt in contours:
                 area = cv2.contourArea(cnt)
                 ratio = area / frame_area
@@ -149,14 +186,153 @@ class DeviceDetector:
                 rx, ry, rw, rh = cv2.boundingRect(cnt)
                 aspect = max(rw, rh) / max(min(rw, rh), 1)
                 if self.PHONE_ASPECT_MIN <= aspect <= self.PHONE_ASPECT_MAX:
-                    found_rects.append({'area': area, 'solidity': solidity, 'aspect': aspect})
+                    candidates.append({'area': area, 'score': solidity * min(1.0, ratio / 0.04), 'aspect': aspect})
 
-            if found_rects:
-                best = max(found_rects, key=lambda r: r['solidity'])
-                conf = best['solidity'] * min(1.0, best['area'] / (frame_area * 0.05))
-                return {'found': True, 'count': len(found_rects), 'confidence': conf}
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            edges = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 60, 160)
+            edges = cv2.dilate(edges, kernel, iterations=1)
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                ratio = area / frame_area
+                if ratio < self.PHONE_EDGE_MIN_AREA_RATIO or ratio > self.PHONE_EDGE_MAX_AREA_RATIO:
+                    continue
+
+                perimeter = cv2.arcLength(cnt, True)
+                if perimeter <= 0:
+                    continue
+
+                approx = cv2.approxPolyDP(cnt, 0.02 * perimeter, True)
+                rx, ry, rw, rh = cv2.boundingRect(cnt)
+                bbox_area = max(rw * rh, 1)
+                rectangularity = area / bbox_area
+                aspect = max(rw, rh) / max(min(rw, rh), 1)
+
+                if len(approx) <= 6 and rectangularity >= self.PHONE_EDGE_RECT_RATIO and self.PHONE_EDGE_ASPECT_MIN <= aspect <= self.PHONE_EDGE_ASPECT_MAX:
+                    score = rectangularity * min(1.0, ratio / 0.04)
+                    if score >= self.PHONE_EDGE_MIN_CONF:
+                        candidates.append({'area': area, 'score': score, 'aspect': aspect})
+
+            if candidates:
+                best = max(candidates, key=lambda r: r['score'])
+                return {'found': True, 'count': len(candidates), 'confidence': best['score']}
         except Exception as e:
             print(f"[DEVICE] Phone detection error: {e}")
+        return {'found': False, 'count': 0, 'confidence': 0.0}
+
+    def _detect_watch_or_wearable(self, image, h, w, frame_area):
+        """Detect smartwatch/smart-band like small rectangular gadgets."""
+        try:
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            _, bright = cv2.threshold(hsv[:, :, 2], self.WATCH_BRIGHTNESS_LOW, 255, cv2.THRESH_BINARY)
+            edges = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 70, 180)
+            merged = cv2.bitwise_or(bright, edges)
+
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+            merged = cv2.morphologyEx(merged, cv2.MORPH_CLOSE, kernel, iterations=2)
+            merged = cv2.morphologyEx(merged, cv2.MORPH_OPEN, kernel, iterations=1)
+
+            contours, _ = cv2.findContours(merged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            candidates = []
+
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                ratio = area / frame_area
+                if ratio < self.WATCH_MIN_AREA_RATIO or ratio > self.WATCH_MAX_AREA_RATIO:
+                    continue
+
+                x, y, rw, rh = cv2.boundingRect(cnt)
+                if rw <= 0 or rh <= 0:
+                    continue
+
+                # Wrist gadgets are usually near lower half and toward side regions.
+                cx = x + rw / 2
+                cy = y + rh / 2
+                if cy < h * 0.35:
+                    continue
+                if w * 0.30 < cx < w * 0.70 and cy < h * 0.70:
+                    continue
+
+                aspect = max(rw, rh) / max(min(rw, rh), 1)
+                if not (self.WATCH_ASPECT_MIN <= aspect <= self.WATCH_ASPECT_MAX):
+                    continue
+
+                hull = cv2.convexHull(cnt)
+                hull_area = cv2.contourArea(hull)
+                solidity = area / hull_area if hull_area > 0 else 0
+                bbox_area = max(rw * rh, 1)
+                rectangularity = area / bbox_area
+
+                if rectangularity < self.WATCH_RECT_MIN or solidity < self.WATCH_SOLIDITY_MIN:
+                    continue
+
+                conf = (rectangularity * 0.55) + (solidity * 0.45)
+                candidates.append(conf)
+
+            if candidates:
+                return {'found': True, 'count': len(candidates), 'confidence': float(max(candidates))}
+        except Exception as e:
+            print(f"[DEVICE] Watch detection error: {e}")
+
+        return {'found': False, 'count': 0, 'confidence': 0.0}
+
+    def _detect_headphones(self, image, h, w):
+        """Detect over-ear headphones / headsets using paired circle-like cups."""
+        try:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (9, 9), 2)
+
+            circles = cv2.HoughCircles(
+                gray,
+                cv2.HOUGH_GRADIENT,
+                dp=1.2,
+                minDist=70,
+                param1=90,
+                param2=25,
+                minRadius=self.HEADPHONE_MIN_RADIUS,
+                maxRadius=self.HEADPHONE_MAX_RADIUS
+            )
+
+            if circles is None:
+                return {'found': False, 'count': 0, 'confidence': 0.0}
+
+            circles = np.round(circles[0, :]).astype(int)
+            candidates = []
+            for x, y, r in circles:
+                if y < int(h * 0.12) or y > int(h * 0.88):
+                    continue
+                if x < int(w * 0.05) or x > int(w * 0.95):
+                    continue
+                area = np.pi * (r ** 2)
+                if area < 900 or area > 30000:
+                    continue
+                candidates.append((x, y, r))
+
+            if len(candidates) < 2:
+                return {'found': False, 'count': 0, 'confidence': 0.0}
+
+            best_score = 0.0
+            for i in range(len(candidates)):
+                for j in range(i + 1, len(candidates)):
+                    x1, y1, r1 = candidates[i]
+                    x2, y2, r2 = candidates[j]
+                    x_dist = abs(x1 - x2)
+                    y_dist = abs(y1 - y2)
+                    if y_dist > self.HEADPHONE_MAX_Y_DELTA:
+                        continue
+                    if x_dist < self.HEADPHONE_MIN_PAIR_DIST or x_dist > self.HEADPHONE_MAX_PAIR_DIST:
+                        continue
+                    radius_similarity = 1.0 - min(abs(r1 - r2) / max(r1, r2), 1.0)
+                    pair_score = radius_similarity * 0.65 + min(1.0, x_dist / self.HEADPHONE_MIN_PAIR_DIST) * 0.35
+                    if pair_score > best_score:
+                        best_score = pair_score
+
+            if best_score > 0:
+                return {'found': True, 'count': 2, 'confidence': best_score}
+        except Exception as e:
+            print(f"[DEVICE] Headphone detection error: {e}")
         return {'found': False, 'count': 0, 'confidence': 0.0}
 
     def _detect_earbuds(self, image):
@@ -245,7 +421,10 @@ def tick_counters(state, suspicious_types: set, detect_ctx: dict) -> list:
     Returns:
         list of (violation_type, human_reason) tuples that just confirmed
     """
-    all_types = {'absent', 'multiple_faces', 'eyes_away', 'head_turned', 'looking_down', 'looking_up', 'face_mismatch'}
+    all_types = {
+        'absent', 'multiple_faces', 'eyes_away', 'head_turned', 'looking_down', 'looking_up', 'face_mismatch',
+        'device_phone', 'device_headphone', 'device_earbud', 'device_watch'
+    }
     newly_confirmed = []
 
     for vtype in all_types:
@@ -283,7 +462,9 @@ HUMAN_REASONS = {
     'looking_up':      'Student looking up (possible notes above screen)',
     'face_mismatch':   'Different person detected - enrolled face does not match current frame',
     'device_phone':    'Mobile phone or electronic screen detected in frame',
+    'device_headphone':'Headphones / headset detected in frame',
     'device_earbud':   'Wireless earbuds / pods detected (possible audio cheating)',
+    'device_watch':    'Smart watch / wearable electronic gadget detected in frame',
 }
 
 
@@ -342,22 +523,31 @@ def analyze_frame():
             detect_ctx['num_faces'] = face_result['num_faces']
             state['face_mismatch_counter'] = 0  # Reset on multiple faces
 
-        # Check face verification if available
+        # Check face verification if available.
+        # Important: avoid mismatch flagging while head is strongly turned/down/up.
         if identity_check_result and not identity_check_result['verified']:
-            # Face doesn't match - increment mismatch counter
-            state['face_mismatch_counter'] += 1
+            yaw = abs((pose_result or {}).get('yaw', 0.0))
+            pitch = abs((pose_result or {}).get('pitch', 0.0))
+            frontal_enough = yaw <= MAX_YAW_FOR_FACE_MATCH and pitch <= MAX_PITCH_FOR_FACE_MATCH
+
             detect_ctx['face_confidence'] = round(identity_check_result['confidence'], 3)
             detect_ctx['face_threshold'] = FACE_VERIFICATION_THRESHOLD
-            
-            # Show warning as soon as possible for clear imposters
-            if identity_check_result['confidence'] >= (FACE_VERIFICATION_THRESHOLD + FACE_MISMATCH_IMMEDIATE_DISTANCE):
-                suspicious.add('face_mismatch')
-                print(f"[FACE_MISMATCH] IMMEDIATE Student={student_id} | Confidence={identity_check_result['confidence']:.3f}", flush=True)
-            elif state['face_mismatch_counter'] >= FACE_MISMATCH_CONFIRM_FRAMES:
-                suspicious.add('face_mismatch')
-                print(f"[FACE_MISMATCH] Student={student_id} | Counter={state['face_mismatch_counter']} reached threshold | Confidence: {identity_check_result['confidence']:.3f}", flush=True)
+            detect_ctx['face_pose_ok'] = frontal_enough
+
+            if frontal_enough:
+                state['face_mismatch_counter'] += 1
+
+                if identity_check_result['confidence'] >= (FACE_VERIFICATION_THRESHOLD + FACE_MISMATCH_IMMEDIATE_DISTANCE):
+                    suspicious.add('face_mismatch')
+                    print(f"[FACE_MISMATCH] IMMEDIATE Student={student_id} | Confidence={identity_check_result['confidence']:.3f}", flush=True)
+                elif state['face_mismatch_counter'] >= FACE_MISMATCH_CONFIRM_FRAMES:
+                    suspicious.add('face_mismatch')
+                    print(f"[FACE_MISMATCH] Student={student_id} | Counter={state['face_mismatch_counter']} reached threshold | Confidence: {identity_check_result['confidence']:.3f}", flush=True)
+            else:
+                # Don't let steep head turns accumulate mismatch state.
+                state['face_mismatch_counter'] = 0
+                print(f"[FACE_MISMATCH] Suppressed due to pose | yaw={yaw:.1f}, pitch={pitch:.1f}", flush=True)
         else:
-            # Face matches or verification not active - reset counter
             state['face_mismatch_counter'] = 0
 
         if eye_result and eye_result.get('looking_away'):
@@ -379,11 +569,21 @@ def analyze_frame():
         if device_result.get('device_detected'):
             dtype = device_result.get('device_type', 'unknown')
             dconf = device_result.get('confidence', 0)
-            if dtype == 'phone_or_screen' and dconf >= 0.35:
+            if dtype == 'phone_or_screen' and dconf >= 0.30:
                 suspicious.add('device_phone')
                 detect_ctx['device_type']       = dtype
                 detect_ctx['device_confidence'] = round(dconf, 3)
                 print(f"[DEVICE] Student={student_id} | phone/screen detected conf={dconf:.3f}", flush=True)
+            elif dtype == 'headphone_or_headset' and dconf >= 0.30:
+                suspicious.add('device_headphone')
+                detect_ctx['device_type']       = dtype
+                detect_ctx['device_confidence'] = round(dconf, 3)
+                print(f"[DEVICE] Student={student_id} | headphone/headset detected conf={dconf:.3f}", flush=True)
+            elif dtype == 'watch_or_wearable' and dconf >= 0.36:
+                suspicious.add('device_watch')
+                detect_ctx['device_type']       = dtype
+                detect_ctx['device_confidence'] = round(dconf, 3)
+                print(f"[DEVICE] Student={student_id} | watch/wearable detected conf={dconf:.3f}", flush=True)
             elif dtype == 'earbud_or_pod' and dconf >= 0.40:
                 suspicious.add('device_earbud')
                 detect_ctx['device_type']       = dtype
@@ -418,7 +618,7 @@ def analyze_frame():
 
         # ── Surface face_mismatch as immediate warning to client ────────────────────
         face_mismatch_confirmed = 'face_mismatch' in confirmed
-        device_confirmed        = 'device_phone' in confirmed or 'device_earbud' in confirmed
+        device_confirmed        = 'device_phone' in confirmed or 'device_headphone' in confirmed or 'device_earbud' in confirmed or 'device_watch' in confirmed
         device_type_label       = detect_ctx.get('device_type', 'none')
 
         return jsonify({
@@ -573,4 +773,4 @@ if __name__ == '__main__':
     print(f"        absent={ABSENCE_CONFIRM_FRAMES} frames | gaze={GAZE_CONFIRM_FRAMES} frames")
     print(f"        face_mismatch={FACE_MISMATCH_CONFIRM_FRAMES} frames")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', '5000')), debug=False)

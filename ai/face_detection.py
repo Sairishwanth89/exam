@@ -18,7 +18,7 @@ import cv2
 import mediapipe as mp
 
 # ── Tunable constants (hardcoded rules) ──────────────────────────────────────
-PRIMARY_FACE_MIN_CONFIDENCE = 0.70   # Minimum confidence to treat a face as real
+PRIMARY_FACE_MIN_CONFIDENCE = 0.60   # Minimum confidence to treat a face as real
 SECONDARY_FACE_SIZE_RATIO   = 0.40   # Secondary must be ≥40% primary area to be flagged
 # ─────────────────────────────────────────────────────────────────────────────
 

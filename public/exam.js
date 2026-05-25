@@ -775,9 +775,7 @@ async function captureAndSendFrame() {
         const statusElement = document.getElementById('webcamStatus');
 
         // ── Determine what the AI sees to control overlays ────────────────
-        const aiDetails = (data.analysis && data.analysis.details) || {};
         const faceInfo  = aiDetails.face || {};
-        const noFace    = !faceInfo.face_detected;
         const aiFlags   = (data.analysis && data.analysis.flags) || [];
         const hasDevice = aiFlags.some(f => /phone|mobile|smartphone|device/i.test(f));
 

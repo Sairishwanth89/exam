@@ -1,11 +1,19 @@
 // Load .env file for local development (ignored in Docker where env vars are injected)
 try { require('dotenv').config(); } catch (e) { /* dotenv optional */ }
 
+const nodeCrypto = require('crypto');
+if (typeof globalThis.crypto === 'undefined') {
+    globalThis.crypto = nodeCrypto.webcrypto;
+}
+
+const fs = require('fs');
+const https = require('https');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
+const fsPromises = require('fs').promises;
 const mongoose = require('mongoose');
 
 const app = express();
@@ -14,7 +22,20 @@ const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5000';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/proctorguard';
 
 // Middleware
-app.use(cors());
+// Support restricted CORS via ALLOWED_ORIGINS env (comma-separated). If not set, allow all origins.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+if (ALLOWED_ORIGINS.length) {
+    app.use(cors({
+        origin: function (origin, callback) {
+            // allow non-browser clients or same-origin (no origin)
+            if (!origin) return callback(null, true);
+            if (ALLOWED_ORIGINS.indexOf(origin) !== -1) return callback(null, true);
+            return callback(new Error('CORS policy: origin not allowed'), false);
+        }
+    }));
+} else {
+    app.use(cors());
+}
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
@@ -50,6 +71,33 @@ const userSchema = new mongoose.Schema({
     role: { type: String, default: 'student' }
 });
 const User = mongoose.model('User', userSchema);
+
+async function getSeedUser(username) {
+    try {
+        const seedPaths = [
+            path.join(__dirname, 'data', 'users.json'),
+            path.join(__dirname, '..', 'data', 'users.json')
+        ];
+        let raw = null;
+        for (const candidate of seedPaths) {
+            try {
+                raw = await fsPromises.readFile(candidate, 'utf8');
+                break;
+            } catch (error) {}
+        }
+        if (!raw) return null;
+        const users = JSON.parse(raw);
+        const seed = users[username];
+        if (!seed) return null;
+        return {
+            username,
+            password: typeof seed === 'string' ? seed : seed.password,
+            role: typeof seed === 'object' && seed.role ? seed.role : 'student'
+        };
+    } catch (error) {
+        return null;
+    }
+}
 
 const examQuestionSchema = new mongoose.Schema({
     id: mongoose.Schema.Types.Mixed,
@@ -168,6 +216,32 @@ async function getExamQuestions() {
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-this';
+const SSL_KEY_CANDIDATES = [
+    path.join(__dirname, 'localhost+1-key.pem'),
+    path.join(__dirname, '..', 'localhost+1-key.pem')
+];
+const SSL_CERT_CANDIDATES = [
+    path.join(__dirname, 'localhost+1.pem'),
+    path.join(__dirname, '..', 'localhost+1.pem')
+];
+
+function findFirstExistingFile(candidates) {
+    for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+    return null;
+}
+
+const sslKeyPath = findFirstExistingFile(SSL_KEY_CANDIDATES);
+const sslCertPath = findFirstExistingFile(SSL_CERT_CANDIDATES);
+const sslOptions = sslKeyPath && sslCertPath
+    ? {
+        key: fs.readFileSync(sslKeyPath),
+        cert: fs.readFileSync(sslCertPath)
+    }
+    : null;
 
 // ── Cheat Score deduction table ────────────────────────────────────────
 const CHEAT_DEDUCTIONS = {
@@ -178,6 +252,8 @@ const CHEAT_DEDUCTIONS = {
     multiple_faces:     10,   // extra person visible
     face_mismatch:      20,   // different person
     device_detected:    10,   // phone/device in frame
+    device_headphone:   10,   // headphones / headset in frame
+    device_watch:       10,   // smart watch / wearable gadget in frame
 };
 // Per-student cooldowns (ms) to avoid duplicate deductions for same continuous event
 // key: `${username}_${violationType}` → timestamp of last deduction
@@ -264,7 +340,11 @@ app.post('/api/login', async (req, res) => {
             return res.json({ success: true, message: 'Admin login successful', username, token, role: 'admin' });
         }
 
-        const userData = await User.findOne({ username });
+        let userData = await User.findOne({ username });
+
+        if (!userData) {
+            userData = await getSeedUser(username);
+        }
 
         if (!userData) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -656,8 +736,20 @@ app.post('/api/proctor/frame', authenticateToken, async (req, res) => {
             if (analysis.face_mismatch_warning === true)
                 await applyCheatDeduction(procLog, 'face_mismatch', 'Different person detected — identity mismatch', timestamp);
             // Device in frame
-            if (/phone|mobile|smartphone|cell phone/i.test(reported))
-                await applyCheatDeduction(procLog, 'device_detected', 'Mobile phone/device detected in frame', timestamp);
+            if (/phone|mobile|smartphone|cell phone|headphone|headset|earbud|earbuds|pod|watch|smart watch|smartwatch|wearable|electronic gadget/i.test(reported)) {
+                let violationType = 'device_detected';
+                let reason = 'Mobile phone/device detected in frame';
+
+                if (/headphone|headset|earbud|earbuds|pod/i.test(reported)) {
+                    violationType = 'device_headphone';
+                    reason = 'Headphones/earbuds detected in frame';
+                } else if (/watch|smart watch|smartwatch|wearable/i.test(reported)) {
+                    violationType = 'device_watch';
+                    reason = 'Smart watch/wearable gadget detected in frame';
+                }
+
+                await applyCheatDeduction(procLog, violationType, reason, timestamp);
+            }
         }
 
         // Mark meta as modified (mixed type needs explicit marking)
@@ -929,8 +1021,17 @@ app.get('/api/enroll/status', authenticateToken, async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-    console.log(`✅ Exam Portal Backend running on http://localhost:${PORT}`);
-    console.log(`🤖 AI Service URL: ${AI_SERVICE_URL}`);
-    console.log(`🗄️  MongoDB URI: ${MONGO_URI}`);
-});
+if (sslOptions) {
+    https.createServer(sslOptions, app).listen(PORT, () => {
+        console.log(`✅ HTTPS server on https://localhost:${PORT}`);
+        console.log(`🤖 AI Service URL: ${AI_SERVICE_URL}`);
+        console.log(`🗄️  MongoDB URI: ${MONGO_URI}`);
+    });
+} else {
+    app.listen(PORT, () => {
+        console.log(`✅ Exam Portal Backend running on http://localhost:${PORT}`);
+        console.log(`🤖 AI Service URL: ${AI_SERVICE_URL}`);
+        console.log(`🗄️  MongoDB URI: ${MONGO_URI}`);
+        console.log('ℹ️  HTTPS certs not found. Generate localhost+1-key.pem and localhost+1.pem with mkcert to enable HTTPS.');
+    });
+}

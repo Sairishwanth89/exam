@@ -22,11 +22,12 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 # ── Tunable constants ─────────────────────────────────────────────────────
-FACE_VERIFICATION_THRESHOLD = 0.58  # Max distance for "same person" (0-1 scale, lower=stricter)
+FACE_VERIFICATION_THRESHOLD = 0.62  # Max distance for "same person" (0-1 scale, lower=stricter)
 ENROLLMENT_FRAME_COUNT = 3          # Number of frames to capture for initial enrollment
 ENROLLMENT_MATCH_RATIO = 0.7        # Need 70% of frames to match reference for verification to pass
-MIN_FACE_WIDTH = 80                 # Minimum face bounding box width (pixels) for quality check
-MIN_FACE_HEIGHT = 80                # Minimum face bounding box height (pixels) for quality check
+MIN_FACE_WIDTH = 60                 # Minimum face bounding box width (pixels) for quality check
+MIN_FACE_HEIGHT = 60                # Minimum face bounding box height (pixels) for quality check
+FACE_UPSAMPLE = 1                   # Helps with smaller / farther faces
 FACE_ENCODING_MODEL = 'large'       # Use 'large' CNN model for more accurate 128D encoding
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -68,11 +69,28 @@ class FaceRecognizer:
             
             # Detect face locations using HOG (faster for enrollment)
             # CNN too slow for real-time enrollment (causes timeouts)
-            face_locations = face_recognition.face_locations(image_rgb, model='hog')
+            face_locations = face_recognition.face_locations(
+                image_rgb,
+                number_of_times_to_upsample=FACE_UPSAMPLE,
+                model='hog'
+            )
             
-            if len(face_locations) != 1:
-                # Either no face or multiple faces - reject
+            if len(face_locations) == 0:
                 return None
+
+            if len(face_locations) > 1:
+                face_locations = sorted(
+                    face_locations,
+                    key=lambda loc: (loc[2] - loc[0]) * (loc[1] - loc[3]),
+                    reverse=True
+                )
+                primary = face_locations[0]
+                primary_area = (primary[2] - primary[0]) * (primary[1] - primary[3])
+                secondary = face_locations[1]
+                secondary_area = (secondary[2] - secondary[0]) * (secondary[1] - secondary[3])
+                if secondary_area >= primary_area * 0.65:
+                    return None
+                face_locations = [primary]
             
             # Validate face size/position (quality check)
             top, right, bottom, left = face_locations[0]
@@ -89,7 +107,7 @@ class FaceRecognizer:
                 image_rgb, 
                 face_locations,
                 model=FACE_ENCODING_MODEL,  # 'large' = more accurate
-                num_jitters=2  # Run encoding 2x and average (improves accuracy)
+                num_jitters=1  # Keep runtime lower for real-time capture
             )
             
             if not encodings:

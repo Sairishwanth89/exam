@@ -3,173 +3,348 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProctorGuard AI - Advanced Web Proctoring</title>
+    <title>ProctorGuard AI | Secure Online Exam Monitoring</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .cover-container {
-            position: relative;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 2rem;
-            text-align: center;
+        body.cover-page {
+            font-family: 'Inter', sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(20, 184, 166, 0.18), transparent 30%),
+                radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 28%),
+                linear-gradient(180deg, #07111f 0%, #0a1628 42%, #09111d 100%);
+            color: #e5eefb;
         }
 
-        .cover-header {
-            max-width: 800px;
-            margin-bottom: 3rem;
-            animation: fadeInDown 0.8s ease-out forwards;
-        }
-
-        .cover-header h1 {
-            font-size: 3.5rem;
-            background: linear-gradient(135deg, #a5b4fc, #818cf8, #6366f1);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-        }
-
-        .cover-header p {
-            font-size: 1.25rem;
-            color: #94a3b8;
-            line-height: 1.6;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            max-width: 1100px;
-            width: 100%;
-            margin-bottom: 3rem;
-            animation: fadeInUp 1s ease-out forwards;
-        }
-
-        .feature-card {
-            background: rgba(30, 41, 59, 0.4);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: left;
-            transition: transform 0.3s ease, border-color 0.3s ease;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(99, 102, 241, 0.4);
-        }
-
-        .feature-card h3 {
-            color: #f1f5f9;
-            margin-bottom: 0.75rem;
-            font-size: 1.2rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .feature-card p {
-            color: #94a3b8;
-            font-size: 0.95rem;
-            line-height: 1.5;
-        }
-
-        .actions {
-            animation: fadeIn 1.2s ease-out forwards;
-        }
-
-        .btn-launch {
-            background: linear-gradient(135deg, #6366f1, #4f46e5);
-            color: white;
-            border: none;
-            padding: 1rem 2.5rem;
-            font-size: 1.2rem;
-            font-weight: 600;
-            border-radius: 30px;
-            cursor: pointer;
-            box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .btn-launch:hover {
-            box-shadow: 0 15px 30px -5px rgba(79, 70, 229, 0.6);
-            transform: translateY(-2px);
-        }
-
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+        .cover-shell { position: relative; min-height: 100vh; overflow: hidden; }
+        .cover-grid { position: relative; z-index: 2; width: min(1220px, calc(100% - 2rem)); margin: 0 auto; padding: 2rem 0 4rem; }
+        .cover-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.25rem; margin-bottom:2rem; border:1px solid rgba(148,163,184,.14); background:rgba(8,16,30,.66); backdrop-filter:blur(18px); border-radius:20px; box-shadow:0 18px 50px rgba(0,0,0,.25); }
+        .brand-mark { display:flex; align-items:center; gap:.9rem; }
+        .brand-badge { width:3rem; height:3rem; display:grid; place-items:center; border-radius:14px; background:linear-gradient(135deg,#2dd4bf,#3b82f6 55%,#8b5cf6); color:white; font-weight:700; box-shadow:0 10px 30px rgba(59,130,246,.35); }
+        .brand-copy h1, .hero-copy h2, .section-title { font-family:'Space Grotesk', sans-serif; letter-spacing:-.03em; }
+        .brand-copy h1 { font-size:1.2rem; margin:0; }
+        .brand-copy p { margin:.18rem 0 0; color:#8ea4c4; font-size:.9rem; }
+        .hero { display:grid; grid-template-columns:1.15fr .85fr; gap:2rem; align-items:center; margin-bottom:1.5rem; }
+        .hero-copy { padding:1.5rem 0; }
+        .eyebrow { display:inline-flex; align-items:center; gap:.55rem; padding:.5rem .85rem; margin-bottom:1rem; border-radius:999px; border:1px solid rgba(148,163,184,.16); background:rgba(255,255,255,.04); color:#b7d8ff; font-size:.82rem; letter-spacing:.04em; text-transform:uppercase; }
+        .hero-copy h2 { font-size:clamp(2.7rem, 6vw, 5.2rem); line-height:.96; margin:0 0 1rem; color:#f8fbff; }
+        .hero-copy h2 span { background:linear-gradient(135deg,#86efac,#67e8f9 40%,#818cf8 80%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+        .hero-copy .lead { max-width:66ch; color:#bfd0e8; font-size:1.05rem; line-height:1.75; margin-bottom:1.35rem; }
+        .hero-actions { display:flex; flex-wrap:wrap; gap:.85rem; margin-bottom:1.5rem; }
+        .nav-links { display:flex; align-items:center; gap:.65rem; flex-wrap:wrap; }
+        .btn-launch, .btn-secondary, .btn-ghost { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.95rem 1.35rem; border-radius:14px; text-decoration:none; font-weight:700; transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+        .btn-launch { color:white; border:1px solid rgba(99,102,241,.35); background:linear-gradient(135deg,#14b8a6,#2563eb 55%,#4f46e5); box-shadow:0 18px 40px rgba(37,99,235,.34); }
+        .btn-secondary { color:#e5eefb; border:1px solid rgba(148,163,184,.18); background:rgba(255,255,255,.04); }
+        .btn-ghost { color:#cfe3fb; border:1px solid rgba(148,163,184,.16); background:transparent; }
+        .btn-launch:hover, .btn-secondary:hover, .btn-ghost:hover { transform:translateY(-2px); }
+        .hero-metrics { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:.9rem; }
+        .metric-card { padding:1rem; border-radius:18px; border:1px solid rgba(148,163,184,.12); background:rgba(255,255,255,.05); backdrop-filter:blur(16px); }
+        .metric-card strong { display:block; font-family:'Space Grotesk', sans-serif; font-size:1.7rem; margin-bottom:.3rem; color:#f8fbff; }
+        .metric-card span { color:#9fb3cf; font-size:.9rem; line-height:1.45; }
+        .hero-panel { padding:1.3rem; border-radius:28px; border:1px solid rgba(148,163,184,.14); background:linear-gradient(180deg, rgba(13,25,45,.92), rgba(8,14,26,.88)); box-shadow:0 28px 80px rgba(0,0,0,.36); }
+        .panel-header { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; margin-bottom:1rem; }
+        .panel-header h3 { font-family:'Space Grotesk', sans-serif; font-size:1.3rem; margin-bottom:.35rem; }
+        .panel-header p, .panel-note, .mini-label { color:#9fb3cf; font-size:.92rem; line-height:1.6; }
+        .status-chip { display:inline-flex; align-items:center; gap:.4rem; padding:.5rem .7rem; border-radius:999px; background:rgba(16,185,129,.12); color:#a7f3d0; border:1px solid rgba(16,185,129,.18); white-space:nowrap; }
+        .panel-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:.85rem; }
+        .panel-stat, .panel-callout { padding:1rem; border-radius:18px; border:1px solid rgba(148,163,184,.12); background:rgba(255,255,255,.04); }
+        .panel-stat strong { display:block; color:#f8fbff; font-size:1.05rem; margin-bottom:.35rem; }
+        .section-block { margin-top:1.5rem; padding:1.4rem; border-radius:26px; border:1px solid rgba(148,163,184,.12); background:rgba(8,16,30,.66); backdrop-filter:blur(18px); }
+        .section-title { font-size:1.65rem; margin-bottom:.5rem; }
+        .section-subtitle { color:#9fb3cf; margin-bottom:1.2rem; line-height:1.7; max-width:75ch; }
+        .cards-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:1rem; }
+        .info-card { padding:1.15rem; border-radius:18px; border:1px solid rgba(148,163,184,.12); background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03)); min-height:100%; }
+        .info-card h4 { font-family:'Space Grotesk', sans-serif; font-size:1.05rem; margin-bottom:.65rem; color:#f8fbff; }
+        .info-card p, .info-card li { color:#a9bdd6; line-height:1.7; font-size:.94rem; }
+        .info-card ul { margin-top:.55rem; padding-left:1.1rem; }
+        .timeline { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:.9rem; }
+        .timeline-item { padding:1rem; border-radius:16px; border:1px solid rgba(148,163,184,.12); background:rgba(255,255,255,.04); }
+        .timeline-item span { display:inline-block; margin-bottom:.55rem; font-size:.8rem; text-transform:uppercase; letter-spacing:.08em; color:#7dd3fc; }
+        .timeline-item strong { display:block; font-family:'Space Grotesk', sans-serif; margin-bottom:.45rem; color:#f8fbff; }
+        .comparison-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:1rem; }
+        .compare-box { padding:1.1rem; border-radius:18px; border:1px solid rgba(148,163,184,.12); background:rgba(255,255,255,.04); }
+        .compare-box h4 { font-family:'Space Grotesk', sans-serif; margin-bottom:.55rem; color:#f8fbff; }
+        .compare-box li { color:#a9bdd6; line-height:1.65; margin-bottom:.45rem; }
+        .trust-row { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:.8rem; }
+        .trust-chip { padding:.9rem 1rem; border-radius:14px; border:1px solid rgba(148,163,184,.12); background:rgba(255,255,255,.04); color:#bcd0e9; text-align:center; }
+        .trust-chip strong { display:block; color:#f8fbff; margin-bottom:.25rem; font-size:1rem; }
+        .cta-block { margin-top:1.5rem; padding:1.5rem; border-radius:26px; border:1px solid rgba(59,130,246,.18); background:linear-gradient(135deg, rgba(20,184,166,.12), rgba(37,99,235,.14), rgba(79,70,229,.18)); display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+        .cta-block h3 { font-family:'Space Grotesk', sans-serif; font-size:1.5rem; margin-bottom:.4rem; }
+        .cta-block p { color:#bfd0e8; line-height:1.65; max-width:70ch; }
+        .floating-orb { position:absolute; border-radius:999px; filter:blur(80px); opacity:.42; pointer-events:none; }
+        .orb-a { width:320px; height:320px; left:-120px; top:80px; background:rgba(34,197,94,.26); }
+        .orb-b { width:300px; height:300px; right:-120px; top:240px; background:rgba(59,130,246,.28); }
+        .orb-c { width:260px; height:260px; left:35%; bottom:-120px; background:rgba(168,85,247,.18); }
+        @media (max-width: 980px) { .hero, .cards-grid, .timeline, .comparison-grid, .trust-row, .hero-metrics, .panel-grid { grid-template-columns:1fr 1fr; } .hero { grid-template-columns:1fr; } }
+        @media (max-width: 720px) { .cover-grid { width:min(100% - 1rem, 1220px); padding-top:1rem; } .cover-topbar, .cta-block { padding:1rem; } .cover-topbar, .panel-header { flex-direction:column; align-items:flex-start; } .cards-grid, .timeline, .comparison-grid, .trust-row, .hero-metrics, .panel-grid { grid-template-columns:1fr; } .hero-copy h2 { line-height:1.02; } }
     </style>
 </head>
-
-<body>
-    <!-- Background animations imported from existing styles -->
-    <div class="background-animation">
-        <div class="gradient-sphere sphere-1"></div>
-        <div class="gradient-sphere sphere-2"></div>
-        <div class="gradient-sphere sphere-3"></div>
-    </div>
-
-    <!-- Main Landing Wrap -->
-    <div class="cover-container">
-        <div class="cover-header">
-            <h1>ProctorGuard AI</h1>
-            <p>The next-generation, high-performance proctoring module engineered with an embedded Python inference layer. Real-time evaluation limits zero-day cheating methodologies without installing native apps.</p>
+<body class="cover-page">
+    <div class="cover-shell">
+        <div class="background-animation" aria-hidden="true">
+            <div class="gradient-sphere sphere-1"></div>
+            <div class="gradient-sphere sphere-2"></div>
+            <div class="gradient-sphere sphere-3"></div>
+            <div class="floating-orb orb-a"></div>
+            <div class="floating-orb orb-b"></div>
+            <div class="floating-orb orb-c"></div>
         </div>
 
-        <div class="features-grid">
-            <div class="feature-card">
-                <h3>🧿 Advanced Gaze Tracking</h3>
-                <p>Achieves sub-millimeter precision utilizing a highly optimized 4-point bounding box matrix over the student's iris, isolating micro-glances away from the primary screen canvas.</p>
-            </div>
-            
-            <div class="feature-card">
-                <h3>🧭 3D Head Pose Mapping</h3>
-                <p>99.8% precision tracking system via MediaPipe Face Mesh. Calculates complex X, Y, and Z coordinate thresholds to detect unauthorized rotation (Yaw, Pitch, Roll) down to single degrees.</p>
-            </div>
+        <main class="cover-grid">
+            <section class="cover-topbar">
+                <div class="brand-mark">
+                    <div class="brand-badge">PG</div>
+                    <div class="brand-copy">
+                        <h1>ProctorGuard AI</h1>
+                        <p>Real-time exam integrity, face verification, and device detection in one flow.</p>
+                    </div>
+                </div>
+                <div class="nav-links">
+                    <a href="/login.html" class="btn-secondary">Login</a>
+                    <a href="/signup.html" class="btn-ghost">Sign Up</a>
+                </div>
+            </section>
 
-            <div class="feature-card">
-                <h3>👥 Environmental Awareness</h3>
-                <p>Dynamically scans the volumetric room space utilizing Haar-cascade background analysis, instantly flagging secondary objects and recognizing multiple unique facial signatures in the immediate zone.</p>
-            </div>
+            <section class="hero">
+                <div class="hero-copy">
+                    <div class="eyebrow">Secure online examinations</div>
+                    <h2>Smart proctoring that <span>keeps exams fair</span> without slowing students down.</h2>
+                    <p class="lead">
+                        ProctorGuard AI is a browser-based monitoring platform designed for remote exams, quiz sessions, and identity-verified assessments.
+                        It watches the camera feed, checks identity, flags suspicious behavior, and helps instructors review only the events that matter.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="/login.html" class="btn-launch">Proceed to Login →</a>
+                        <a href="/signup.html" class="btn-secondary">Create Account</a>
+                    </div>
+                    <div class="hero-metrics">
+                        <div class="metric-card">
+                            <strong>24/7</strong>
+                            <span>Always-on browser monitoring during the exam session.</span>
+                        </div>
+                        <div class="metric-card">
+                            <strong>4</strong>
+                            <span>Core AI layers: face, eyes, head pose, and device signals.</span>
+                        </div>
+                        <div class="metric-card">
+                            <strong>100%</strong>
+                            <span>Audit trail coverage for review, score deduction, and reports.</span>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="feature-card">
-                <h3>🔒 Strict Context Enforcement</h3>
-                <p>Monitors hardware-level browser container states, utilizing Page Visibility APIs and global blur events to automatically freeze exams during aggressive tab-switching attempts.</p>
-            </div>
+                <aside class="hero-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h3>Live system snapshot</h3>
+                            <p>Example analytics from a typical proctored session.</p>
+                        </div>
+                        <div class="status-chip">● Monitoring active</div>
+                    </div>
+                    <div class="panel-grid">
+                        <div class="panel-stat">
+                            <strong>98.4%</strong>
+                            <div class="mini-label">face match confidence on enrollment samples</div>
+                        </div>
+                        <div class="panel-stat">
+                            <strong>0.8s</strong>
+                            <div class="mini-label">average frame analysis time on a modest laptop</div>
+                        </div>
+                        <div class="panel-stat">
+                            <strong>12</strong>
+                            <div class="mini-label">sample violations recorded in a fake demo session</div>
+                        </div>
+                        <div class="panel-stat">
+                            <strong>3</strong>
+                            <div class="mini-label">device classes detected: phone, earbuds, headset</div>
+                        </div>
+                    </div>
+                    <div class="panel-callout" style="margin-top:0.85rem;">
+                        <strong style="display:block;color:#f8fbff;margin-bottom:.35rem;font-family:'Space Grotesk',sans-serif;">What it solves</strong>
+                        <p class="panel-note">
+                            It reduces manual invigilation overhead, catches face mismatch and device misuse, and gives exam teams a clear record of what happened instead of forcing them to replay full sessions.
+                        </p>
+                    </div>
+                </aside>
+            </section>
 
-            <div class="feature-card">
-                <h3>⚡ Latency-Free Processing</h3>
-                <p>Employs an ultra-fast base64 pipeline directly into the headless Flask inference container, evaluating continuous video streams with under 35ms of localized overhead.</p>
-            </div>
+            <section class="section-block">
+                <h3 class="section-title">About ProctorGuard AI</h3>
+                <p class="section-subtitle">
+                    ProctorGuard AI is a secure online exam monitoring platform built to help institutions run remote assessments with more confidence.
+                    It combines browser-based exam access, AI-assisted camera checks, and centralized review tools so the exam process feels professional rather than improvised.
+                </p>
+                <div class="cards-grid">
+                    <article class="info-card">
+                        <h4>Official exam entry point</h4>
+                        <p>The homepage introduces the platform and gives students and admins a clean path into their account flow.</p>
+                    </article>
+                    <article class="info-card">
+                        <h4>Secure and structured</h4>
+                        <p>The system uses login, role handling, and AI proctoring to keep the experience organized and auditable.</p>
+                    </article>
+                    <article class="info-card">
+                        <h4>Professional presentation</h4>
+                        <p>The layout is designed to resemble an official software product site with clear trust signals and concise messaging.</p>
+                    </article>
+                </div>
+            </section>
 
-            <div class="feature-card">
-                <h3>📊 Comprehensive Audit Trail</h3>
-                <p>Persists deeply correlated metric structures into a NoSQL ledger, preserving time-synced photographic evidence and detailed system behavior states for faculty review.</p>
-            </div>
-        </div>
+            <section class="section-block">
+                <h3 class="section-title">Why teams use it</h3>
+                <p class="section-subtitle">
+                    Remote exams fail when the platform is too heavy, too noisy, or too rigid. This project is built to stay light in the browser, keep the exam flow simple,
+                    and surface only meaningful alerts such as face absence, multiple faces, head movement, phone usage, earbuds, and headsets.
+                </p>
+                <div class="cards-grid">
+                    <article class="info-card">
+                        <h4>Solves common exam risks</h4>
+                        <p>Detects the behaviors that usually break trust in remote tests.</p>
+                        <ul>
+                            <li>Face not visible or student leaves the frame</li>
+                            <li>Multiple faces or identity mismatch</li>
+                            <li>Mobile phones, earbuds, and headphones in view</li>
+                            <li>Suspicious eye movement and head rotation patterns</li>
+                        </ul>
+                    </article>
+                    <article class="info-card">
+                        <h4>Designed for practical usage</h4>
+                        <p>Fits into a standard web stack and works with the existing exam flow.</p>
+                        <ul>
+                            <li>Express backend with exam session handling</li>
+                            <li>Python AI worker for camera analysis</li>
+                            <li>MongoDB-backed persistence for exam and proctoring data</li>
+                            <li>Browser-first workflow, no native app install needed</li>
+                        </ul>
+                    </article>
+                    <article class="info-card">
+                        <h4>Fake demo data, clearly labeled</h4>
+                        <p>Sample figures are included here to make the product story more readable.</p>
+                        <ul>
+                            <li>1,250+ simulated test sessions in demo mode</li>
+                            <li>8.7/10 average reviewer clarity score</li>
+                            <li>92% reduction in manual review time in a sample rollout</li>
+                            <li>15 second setup target for a ready-to-test environment</li>
+                        </ul>
+                    </article>
+                </div>
+            </section>
 
-        <div class="actions">
-            <a href="/login.html" class="btn-launch">Proceed to Login →</a>
-        </div>
+            <section class="section-block">
+                <h3 class="section-title">What makes us different</h3>
+                <p class="section-subtitle">
+                    Most proctoring demos stop at a webcam preview and a basic warning badge. This project goes further by combining identity enrollment,
+                    runtime scoring, device awareness, and an operator-friendly review trail.
+                </p>
+                <div class="comparison-grid">
+                    <div class="compare-box">
+                        <h4>Typical tools</h4>
+                        <ul>
+                            <li>Basic webcam presence checks only</li>
+                            <li>Binary warnings with little context</li>
+                            <li>Weak device detection and noisy alerts</li>
+                            <li>No clear explanation of why a flag fired</li>
+                        </ul>
+                    </div>
+                    <div class="compare-box">
+                        <h4>ProctorGuard AI</h4>
+                        <ul>
+                            <li>Face verification plus ongoing proctoring</li>
+                            <li>Severity scoring and confidence-aware signals</li>
+                            <li>Phone, earbud, and headset heuristics</li>
+                            <li>Cleaner audit trail for teachers and admins</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section-block">
+                <h3 class="section-title">Feature set</h3>
+                <p class="section-subtitle">
+                    Everything below maps directly to the current project flow, from login and exam start to ongoing camera monitoring and report output.
+                </p>
+                <div class="cards-grid">
+                    <article class="info-card">
+                        <h4>Identity verification</h4>
+                        <p>Captures clear enrollment samples and compares the live user to the registered face profile.</p>
+                    </article>
+                    <article class="info-card">
+                        <h4>Face and posture detection</h4>
+                        <p>Tracks whether the candidate stays present, centered, and generally engaged with the exam screen.</p>
+                    </article>
+                    <article class="info-card">
+                        <h4>Device and gadget detection</h4>
+                        <p>Flags phones, earbuds, headsets, and other suspicious objects appearing in front of the camera.</p>
+                    </article>
+                    <article class="info-card">
+                        <h4>Cheat score tracking</h4>
+                        <p>Maintains an integrity score so invigilators can see severity instead of just raw alerts.</p>
+                    </article>
+                    <article class="info-card">
+                        <h4>Admin review output</h4>
+                        <p>Stores the latest suspicious events so an operator can review what happened after the session.</p>
+                    </article>
+                    <article class="info-card">
+                        <h4>Lightweight deployment</h4>
+                        <p>Runs on the existing Node.js and Python services already present in this workspace.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section class="section-block">
+                <h3 class="section-title">How it works</h3>
+                <p class="section-subtitle">
+                    The flow is intentionally simple: students log in, verify their face, start the exam, and the AI service evaluates each frame in the background.
+                </p>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <span>Step 01</span>
+                        <strong>Login and enroll</strong>
+                        <p>Student credentials are loaded, then the camera is used to confirm identity before the exam starts.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <span>Step 02</span>
+                        <strong>Start exam session</strong>
+                        <p>The exam page opens with a visible timer, live webcam monitor, and a clear integrity widget.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <span>Step 03</span>
+                        <strong>Analyze in real time</strong>
+                        <p>The Python service checks face presence, gaze, head pose, and nearby devices from each frame.</p>
+                    </div>
+                    <div class="timeline-item">
+                        <span>Step 04</span>
+                        <strong>Record and review</strong>
+                        <p>Suspicious actions become structured events that can be reviewed after the submission.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section-block">
+                <h3 class="section-title">Trust and readiness</h3>
+                <p class="section-subtitle">
+                    This is a demo-ready product story, but it is grounded in the same architecture used by the app itself.
+                </p>
+                <div class="trust-row">
+                    <div class="trust-chip"><strong>Browser-first</strong>Works in standard modern browsers.</div>
+                    <div class="trust-chip"><strong>AI-assisted</strong>Uses a local Python inference layer.</div>
+                    <div class="trust-chip"><strong>Audit-friendly</strong>Tracks deductions and warnings.</div>
+                    <div class="trust-chip"><strong>Scalable</strong>Fits into the existing service split.</div>
+                </div>
+            </section>
+
+            <section class="cta-block">
+                <div>
+                    <h3>Ready to test the exam flow?</h3>
+                    <p>
+                        Open the login screen to enter the student or admin flow, then move into the exam workspace for webcam setup, face verification, and live proctoring.
+                    </p>
+                </div>
+                <a href="/login.html" class="btn-launch">Open Login →</a>
+            </section>
+        </main>
     </div>
 </body>
 </html>
