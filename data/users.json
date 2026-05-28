@@ -1,0 +1,54 @@
+{
+  "24BD1A052L": {
+    "password": "hsdbsahbx",
+    "role": "student"
+  },
+  "admin": {
+    "password": "test123",
+    "role": "admin"
+  },
+  "admin123": {
+    "password": "test123",
+    "role": "admin"
+  },
+  "srishanth": {
+    "password": "1234567",
+    "role": "student"
+  },
+  "sai": {
+    "password": "123",
+    "role": "student"
+  },
+  "rishwanth": {
+    "password": "1234",
+    "role": "student"
+  },
+  "admin12": {
+    "password": "1234",
+    "role": "admin"
+  },
+  "admin1234": {
+    "password": "1234",
+    "role": "student"
+  },
+  "sai12345": {
+    "password": "1234",
+    "role": "student"
+  },
+  "sai123456": {
+    "password": "123456",
+    "role": "student"
+  },
+  "admin12345": {
+    "password": "123456",
+    "role": "admin"
+  },
+  "shas": {
+    "password": "123456",
+    "role": "student"
+  },
+  "sai123": {
+    "password": "12345",
+    "role": "student"
+  }
+}

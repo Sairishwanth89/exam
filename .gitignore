@@ -32,6 +32,8 @@ env/
 data/
 *.json
 !package.json
+!data/
+!data/users.json
 
 # Logs
 *.log

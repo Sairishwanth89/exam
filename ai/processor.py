@@ -657,8 +657,11 @@ def analyze_frame():
                 suspicious.add('looking_up')
                 detect_ctx['pitch'] = round(pose_result.get('pitch', 0), 1)
 
-        # ── Device detection (always runs, regardless of face state) ────────────
-        if device_result.get('device_detected'):
+        # ── Device detection ────────────────────────────────────────────────────
+        # Only trust phone/headphone alerts when a face is actually present.
+        # This prevents bright background glare from firing a fake device alert
+        # during face-absent frames.
+        if face_result.get('face_detected') and device_result.get('device_detected'):
             dtype = device_result.get('device_type', 'unknown')
             dconf = device_result.get('confidence', 0)
             if dtype == 'phone_or_screen' and dconf >= 0.30:

@@ -347,11 +347,9 @@ app.post('/api/login', async (req, res) => {
             return res.json({ success: true, message: 'Admin login successful', username, token, role: 'admin' });
         }
 
-        let userData = await User.findOne({ username });
-
-        if (!userData) {
-            userData = await getSeedUser(username);
-        }
+        const dbUser = await User.findOne({ username });
+        const seedUser = await getSeedUser(username);
+        const userData = [dbUser, seedUser].find(user => user && user.password === password);
 
         if (!userData) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -359,9 +357,8 @@ app.post('/api/login', async (req, res) => {
 
         const role = userData.role || 'student';
 
-        if (requestedRole && requestedRole !== role) {
-            return res.status(401).json({ error: `Account is not registered as ${requestedRole}. Please select the correct role.` });
-        }
+        // Use the stored role for authentication; do not reject users just because
+        // the login form selected a different role button.
 
         // Admin users must also provide the secret code
         if (role === 'admin') {
