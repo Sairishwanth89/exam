@@ -40,6 +40,13 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
 
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        dbReady: mongoose.connection.readyState === 1
+    });
+});
+
 // MongoDB Connection (with retry)
 async function connectMongo(retries = 5) {
     for (let i = 1; i <= retries; i++) {

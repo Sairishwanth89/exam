@@ -80,29 +80,29 @@ class DeviceDetector:
     """
 
     # Minimum pixel area fraction of frame for a bright rectangle to count
-    PHONE_MIN_AREA_RATIO  = 0.010   # ~1% of frame
-    PHONE_MAX_AREA_RATIO  = 0.45    # <45% (full frame = probably the room light)
-    PHONE_RECT_THRESHOLD  = 0.70    # How rectangular the contour must be (solidity)
-    PHONE_ASPECT_MIN      = 1.3     # Minimum aspect ratio (portrait phone)
-    PHONE_ASPECT_MAX      = 4.5     # Maximum aspect ratio
-    PHONE_BRIGHTNESS_LOW  = 180     # V-channel (HSV) threshold for bright screen
-    PHONE_EDGE_MIN_AREA_RATIO = 0.008
-    PHONE_EDGE_MAX_AREA_RATIO = 0.40
-    PHONE_EDGE_RECT_RATIO     = 0.55
-    PHONE_EDGE_ASPECT_MIN     = 1.1
-    PHONE_EDGE_ASPECT_MAX     = 6.0
-    PHONE_EDGE_MIN_CONF       = 0.30
+    PHONE_MIN_AREA_RATIO  = 0.002   # permissive enough for partially visible phones
+    PHONE_MAX_AREA_RATIO  = 0.55    # allow tablets / large screens too
+    PHONE_RECT_THRESHOLD  = 0.42    # rectangular enough to be a screen/device
+    PHONE_ASPECT_MIN      = 1.05    # allow square-ish phones seen at angle
+    PHONE_ASPECT_MAX      = 8.0     # broad range for rotated/tilted phones
+    PHONE_BRIGHTNESS_LOW  = 155     # lower threshold catches dim screens
+    PHONE_EDGE_MIN_AREA_RATIO = 0.002
+    PHONE_EDGE_MAX_AREA_RATIO = 0.50
+    PHONE_EDGE_RECT_RATIO     = 0.32
+    PHONE_EDGE_ASPECT_MIN     = 1.00
+    PHONE_EDGE_ASPECT_MAX     = 8.0
+    PHONE_EDGE_MIN_CONF       = 0.12
 
     EARBUD_MIN_AREA       = 60      # min blob pixel area
     EARBUD_MAX_AREA       = 800     # max blob pixel area
     EARBUD_CIRCULARITY    = 0.55    # how circular the blob must be
     EARBUD_PAIR_DIST_MAX  = 200     # max pixel dist between paired earbuds
     EARBUD_MIN_BRIGHTNESS = 160     # reflective plastic brightness
-    HEADPHONE_MIN_RADIUS      = 18
-    HEADPHONE_MAX_RADIUS      = 140
-    HEADPHONE_MIN_PAIR_DIST   = 90
-    HEADPHONE_MAX_PAIR_DIST   = 520
-    HEADPHONE_MAX_Y_DELTA      = 90
+    HEADPHONE_MIN_RADIUS      = 10
+    HEADPHONE_MAX_RADIUS      = 180
+    HEADPHONE_MIN_PAIR_DIST   = 35
+    HEADPHONE_MAX_PAIR_DIST   = 620
+    HEADPHONE_MAX_Y_DELTA      = 130
 
     WATCH_MIN_AREA_RATIO      = 0.0006
     WATCH_MAX_AREA_RATIO      = 0.020
@@ -162,32 +162,35 @@ class DeviceDetector:
         """Detect bright rectangular screen (phone/tablet/secondary laptop)."""
         try:
             hsv   = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            gray  = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             # Mask very bright areas (screens glow)
             _, bright_mask = cv2.threshold(hsv[:, :, 2], self.PHONE_BRIGHTNESS_LOW, 255, cv2.THRESH_BINARY)
+            _, dark_mask = cv2.threshold(gray, 85, 255, cv2.THRESH_BINARY_INV)
             # Morphological cleanup
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
             bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_CLOSE, kernel)
             bright_mask = cv2.morphologyEx(bright_mask, cv2.MORPH_OPEN,  kernel)
+            dark_mask = cv2.morphologyEx(dark_mask, cv2.MORPH_CLOSE, kernel)
+            combined_mask = cv2.bitwise_or(bright_mask, dark_mask)
 
             candidates = []
-            contours, _ = cv2.findContours(bright_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for cnt in contours:
-                area = cv2.contourArea(cnt)
-                ratio = area / frame_area
-                if ratio < self.PHONE_MIN_AREA_RATIO or ratio > self.PHONE_MAX_AREA_RATIO:
-                    continue
-                hull       = cv2.convexHull(cnt)
-                hull_area  = cv2.contourArea(hull)
-                solidity   = area / hull_area if hull_area > 0 else 0
-                if solidity < self.PHONE_RECT_THRESHOLD:
-                    continue
-                rx, ry, rw, rh = cv2.boundingRect(cnt)
-                aspect = max(rw, rh) / max(min(rw, rh), 1)
-                if self.PHONE_ASPECT_MIN <= aspect <= self.PHONE_ASPECT_MAX:
-                    candidates.append({'area': area, 'score': solidity * min(1.0, ratio / 0.04), 'aspect': aspect})
+            for mask in (bright_mask, combined_mask):
+                contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                for cnt in contours:
+                    area = cv2.contourArea(cnt)
+                    ratio = area / frame_area
+                    if ratio < self.PHONE_MIN_AREA_RATIO or ratio > self.PHONE_MAX_AREA_RATIO:
+                        continue
+                    hull       = cv2.convexHull(cnt)
+                    hull_area  = cv2.contourArea(hull)
+                    solidity   = area / hull_area if hull_area > 0 else 0
+                    rx, ry, rw, rh = cv2.boundingRect(cnt)
+                    aspect = max(rw, rh) / max(min(rw, rh), 1)
+                    if solidity >= self.PHONE_RECT_THRESHOLD and self.PHONE_ASPECT_MIN <= aspect <= self.PHONE_ASPECT_MAX:
+                        score = solidity * min(1.0, ratio / 0.02)
+                        candidates.append({'area': area, 'score': score, 'aspect': aspect})
 
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            edges = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 60, 160)
+            edges = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 45, 140)
             edges = cv2.dilate(edges, kernel, iterations=1)
             contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for cnt in contours:
@@ -200,14 +203,14 @@ class DeviceDetector:
                 if perimeter <= 0:
                     continue
 
-                approx = cv2.approxPolyDP(cnt, 0.02 * perimeter, True)
+                approx = cv2.approxPolyDP(cnt, 0.03 * perimeter, True)
                 rx, ry, rw, rh = cv2.boundingRect(cnt)
                 bbox_area = max(rw * rh, 1)
                 rectangularity = area / bbox_area
                 aspect = max(rw, rh) / max(min(rw, rh), 1)
 
-                if len(approx) <= 6 and rectangularity >= self.PHONE_EDGE_RECT_RATIO and self.PHONE_EDGE_ASPECT_MIN <= aspect <= self.PHONE_EDGE_ASPECT_MAX:
-                    score = rectangularity * min(1.0, ratio / 0.04)
+                if len(approx) <= 8 and rectangularity >= self.PHONE_EDGE_RECT_RATIO and self.PHONE_EDGE_ASPECT_MIN <= aspect <= self.PHONE_EDGE_ASPECT_MAX:
+                    score = rectangularity * min(1.0, ratio / 0.02)
                     if score >= self.PHONE_EDGE_MIN_CONF:
                         candidates.append({'area': area, 'score': score, 'aspect': aspect})
 
@@ -280,35 +283,67 @@ class DeviceDetector:
         """Detect over-ear headphones / headsets using paired circle-like cups."""
         try:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            gray = cv2.GaussianBlur(gray, (9, 9), 2)
+            blurred = cv2.GaussianBlur(gray, (7, 7), 1.5)
 
-            circles = cv2.HoughCircles(
-                gray,
-                cv2.HOUGH_GRADIENT,
-                dp=1.2,
-                minDist=70,
-                param1=90,
-                param2=25,
-                minRadius=self.HEADPHONE_MIN_RADIUS,
-                maxRadius=self.HEADPHONE_MAX_RADIUS
-            )
-
-            if circles is None:
-                return {'found': False, 'count': 0, 'confidence': 0.0}
-
-            circles = np.round(circles[0, :]).astype(int)
             candidates = []
-            for x, y, r in circles:
-                if y < int(h * 0.12) or y > int(h * 0.88):
+            # Circular/oval cup detections from multiple Hough parameter sets.
+            for dp, param2, min_dist in ((1.2, 18, 35), (1.4, 16, 28), (1.1, 14, 25)):
+                circles = cv2.HoughCircles(
+                    blurred,
+                    cv2.HOUGH_GRADIENT,
+                    dp=dp,
+                    minDist=min_dist,
+                    param1=70,
+                    param2=param2,
+                    minRadius=self.HEADPHONE_MIN_RADIUS,
+                    maxRadius=self.HEADPHONE_MAX_RADIUS
+                )
+                if circles is None:
                     continue
-                if x < int(w * 0.05) or x > int(w * 0.95):
+                circles = np.round(circles[0, :]).astype(int)
+                for x, y, r in circles:
+                    if y < int(h * 0.08) or y > int(h * 0.92):
+                        continue
+                    if x < int(w * 0.02) or x > int(w * 0.98):
+                        continue
+                    area = np.pi * (r ** 2)
+                    if area < 350 or area > 45000:
+                        continue
+                    candidates.append((x, y, r))
+
+            # Ellipse-like contour fallback for cases where Hough misses the cups.
+            edges = cv2.Canny(blurred, 35, 110)
+            edges = cv2.dilate(edges, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)), iterations=1)
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                if area < 250 or area > 60000:
                     continue
-                area = np.pi * (r ** 2)
-                if area < 900 or area > 30000:
+                x, y, rw, rh = cv2.boundingRect(cnt)
+                if rw <= 0 or rh <= 0:
                     continue
-                candidates.append((x, y, r))
+                cx = x + rw / 2
+                cy = y + rh / 2
+                if cy < h * 0.08 or cy > h * 0.92:
+                    continue
+                if cx < w * 0.02 or cx > w * 0.98:
+                    continue
+                aspect = max(rw, rh) / max(min(rw, rh), 1)
+                if aspect > 3.5:
+                    continue
+                perimeter = cv2.arcLength(cnt, True)
+                if perimeter <= 0:
+                    continue
+                circularity = 4 * np.pi * area / (perimeter * perimeter)
+                if circularity >= 0.18:
+                    r = int(max(rw, rh) / 2)
+                    candidates.append((int(cx), int(cy), max(r, self.HEADPHONE_MIN_RADIUS)))
 
             if len(candidates) < 2:
+                if len(candidates) == 1:
+                    x, y, r = candidates[0]
+                    if y < int(h * 0.92):
+                        return {'found': True, 'count': 1, 'confidence': 0.42}
                 return {'found': False, 'count': 0, 'confidence': 0.0}
 
             best_score = 0.0
@@ -323,12 +358,12 @@ class DeviceDetector:
                     if x_dist < self.HEADPHONE_MIN_PAIR_DIST or x_dist > self.HEADPHONE_MAX_PAIR_DIST:
                         continue
                     radius_similarity = 1.0 - min(abs(r1 - r2) / max(r1, r2), 1.0)
-                    pair_score = radius_similarity * 0.65 + min(1.0, x_dist / self.HEADPHONE_MIN_PAIR_DIST) * 0.35
+                    pair_score = radius_similarity * 0.55 + min(1.0, x_dist / self.HEADPHONE_MIN_PAIR_DIST) * 0.45
                     if pair_score > best_score:
                         best_score = pair_score
 
             if best_score > 0:
-                return {'found': True, 'count': 2, 'confidence': best_score}
+                return {'found': True, 'count': 2, 'confidence': max(best_score, 0.45)}
         except Exception as e:
             print(f"[DEVICE] Headphone detection error: {e}")
         return {'found': False, 'count': 0, 'confidence': 0.0}
