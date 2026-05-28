@@ -34,6 +34,7 @@ data/
 !package.json
 !data/
 !data/users.json
+!public/vercel.json
 
 # Logs
 *.log
