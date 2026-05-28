@@ -858,6 +858,16 @@ def _risk_level(count):
     return 'HIGH'
 
 
+def _resolve_port(default_port=5000):
+    raw_port = os.getenv('PORT', '')
+    if not raw_port:
+        return default_port
+    try:
+        return int(raw_port)
+    except (TypeError, ValueError):
+        return default_port
+
+
 if __name__ == '__main__':
     print("=" * 60)
     print(" ProctorGuard AI Service - WITH FACE RECOGNITION")
@@ -865,4 +875,4 @@ if __name__ == '__main__':
     print(f"        absent={ABSENCE_CONFIRM_FRAMES} frames | gaze={GAZE_CONFIRM_FRAMES} frames")
     print(f"        face_mismatch={FACE_MISMATCH_CONFIRM_FRAMES} frames")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', '5000')), debug=False)
+    app.run(host='0.0.0.0', port=_resolve_port(), debug=False)
