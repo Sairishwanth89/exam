@@ -45,8 +45,17 @@ class FaceDetector:
                 gray,
                 scaleFactor=1.1,
                 minNeighbors=5,
-                minSize=(60, 60)
+                minSize=(48, 48)
             )
+
+            if len(faces) == 0:
+                softened = cv2.GaussianBlur(gray, (3, 3), 0)
+                faces = self.face_detection.detectMultiScale(
+                    softened,
+                    scaleFactor=1.05,
+                    minNeighbors=3,
+                    minSize=(48, 48)
+                )
 
             if len(faces) == 0:
                 return {'face_detected': False, 'num_faces': 0, 'confidence': 0.0}

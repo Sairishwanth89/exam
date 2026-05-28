@@ -21,11 +21,11 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 # ── Tunable constants ─────────────────────────────────────────────────────
-FACE_VERIFICATION_THRESHOLD = 0.45  # Max distance for "same person" (0-1 scale, lower=stricter)
+FACE_VERIFICATION_THRESHOLD = 0.55  # Max distance for "same person" (0-1 scale, lower=stricter)
 ENROLLMENT_FRAME_COUNT = 3          # Number of frames to capture for initial enrollment
 ENROLLMENT_MATCH_RATIO = 0.7        # Need 70% of frames to match reference for verification to pass
-MIN_FACE_WIDTH = 60                 # Minimum face bounding box width (pixels) for quality check
-MIN_FACE_HEIGHT = 60                # Minimum face bounding box height (pixels) for quality check
+MIN_FACE_WIDTH = 48                 # Minimum face bounding box width (pixels) for quality check
+MIN_FACE_HEIGHT = 48                # Minimum face bounding box height (pixels) for quality check
 # ──────────────────────────────────────────────────────────────────────────
 
 class FaceRecognizer:
@@ -70,6 +70,15 @@ class FaceRecognizer:
                 minNeighbors=5,
                 minSize=(MIN_FACE_WIDTH, MIN_FACE_HEIGHT)
             )
+
+            if len(face_locations) == 0:
+                softened = cv2.GaussianBlur(gray, (3, 3), 0)
+                face_locations = self.face_detector.detectMultiScale(
+                    softened,
+                    scaleFactor=1.05,
+                    minNeighbors=3,
+                    minSize=(MIN_FACE_WIDTH, MIN_FACE_HEIGHT)
+                )
 
             if len(face_locations) == 0:
                 return None

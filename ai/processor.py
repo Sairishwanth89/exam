@@ -61,11 +61,11 @@ from face_recognition_module import FaceRecognizer, FACE_VERIFICATION_THRESHOLD
 
 # ── Tunable rule constants ────────────────────────────────────────────────────
 CONFIRM_FRAMES         = 10  # Frames a violation must sustain before being flagged
-ABSENCE_CONFIRM_FRAMES = 12  # Frames of no-face before flagging student as absent
+ABSENCE_CONFIRM_FRAMES = 18  # Frames of no-face before flagging student as absent
 GAZE_CONFIRM_FRAMES    = 15  # Frames of looking-away before gaze flag fires
 COOLDOWN_FRAMES        = 15  # Frames to suppress re-logging the same violation type
-FACE_MISMATCH_CONFIRM_FRAMES = 2  # Frames of face mismatch before flagging identity change
-FACE_MISMATCH_IMMEDIATE_DISTANCE = 0.12  # Extra gap above threshold for immediate mismatch flag
+FACE_MISMATCH_CONFIRM_FRAMES = 6  # Frames of face mismatch before flagging identity change
+FACE_MISMATCH_IMMEDIATE_DISTANCE = 0.20  # Extra gap above threshold for immediate mismatch flag
 MAX_YAW_FOR_FACE_MATCH = 28.0     # Do not perform strict face mismatch while head is strongly turned
 MAX_PITCH_FOR_FACE_MATCH = 22.0   # Do not perform strict face mismatch while looking too far up/down
 # ─────────────────────────────────────────────────────────────────────────────
@@ -80,18 +80,18 @@ class DeviceDetector:
     """
 
     # Minimum pixel area fraction of frame for a bright rectangle to count
-    PHONE_MIN_AREA_RATIO  = 0.002   # permissive enough for partially visible phones
+    PHONE_MIN_AREA_RATIO  = 0.0015  # permissive enough for partially visible phones
     PHONE_MAX_AREA_RATIO  = 0.55    # allow tablets / large screens too
-    PHONE_RECT_THRESHOLD  = 0.42    # rectangular enough to be a screen/device
+    PHONE_RECT_THRESHOLD  = 0.35    # rectangular enough to be a screen/device
     PHONE_ASPECT_MIN      = 1.05    # allow square-ish phones seen at angle
     PHONE_ASPECT_MAX      = 8.0     # broad range for rotated/tilted phones
-    PHONE_BRIGHTNESS_LOW  = 155     # lower threshold catches dim screens
-    PHONE_EDGE_MIN_AREA_RATIO = 0.002
+    PHONE_BRIGHTNESS_LOW  = 145     # lower threshold catches dim screens
+    PHONE_EDGE_MIN_AREA_RATIO = 0.0015
     PHONE_EDGE_MAX_AREA_RATIO = 0.50
     PHONE_EDGE_RECT_RATIO     = 0.32
     PHONE_EDGE_ASPECT_MIN     = 1.00
     PHONE_EDGE_ASPECT_MAX     = 8.0
-    PHONE_EDGE_MIN_CONF       = 0.12
+    PHONE_EDGE_MIN_CONF       = 0.08
 
     EARBUD_MIN_AREA       = 60      # min blob pixel area
     EARBUD_MAX_AREA       = 800     # max blob pixel area
@@ -629,10 +629,7 @@ def analyze_frame():
             if frontal_enough:
                 state['face_mismatch_counter'] += 1
 
-                if identity_check_result['confidence'] >= (FACE_VERIFICATION_THRESHOLD + FACE_MISMATCH_IMMEDIATE_DISTANCE):
-                    suspicious.add('face_mismatch')
-                    print(f"[FACE_MISMATCH] IMMEDIATE Student={student_id} | Confidence={identity_check_result['confidence']:.3f}", flush=True)
-                elif state['face_mismatch_counter'] >= FACE_MISMATCH_CONFIRM_FRAMES:
+                if state['face_mismatch_counter'] >= FACE_MISMATCH_CONFIRM_FRAMES and identity_check_result['confidence'] >= (FACE_VERIFICATION_THRESHOLD + FACE_MISMATCH_IMMEDIATE_DISTANCE):
                     suspicious.add('face_mismatch')
                     print(f"[FACE_MISMATCH] Student={student_id} | Counter={state['face_mismatch_counter']} reached threshold | Confidence: {identity_check_result['confidence']:.3f}", flush=True)
             else:
@@ -664,7 +661,7 @@ def analyze_frame():
         if face_result.get('face_detected') and device_result.get('device_detected'):
             dtype = device_result.get('device_type', 'unknown')
             dconf = device_result.get('confidence', 0)
-            if dtype == 'phone_or_screen' and dconf >= 0.30:
+            if dtype == 'phone_or_screen' and dconf >= 0.22:
                 suspicious.add('device_phone')
                 detect_ctx['device_type']       = dtype
                 detect_ctx['device_confidence'] = round(dconf, 3)
