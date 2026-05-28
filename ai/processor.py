@@ -112,6 +112,12 @@ class DeviceDetector:
     WATCH_SOLIDITY_MIN        = 0.50
     WATCH_BRIGHTNESS_LOW      = 145
 
+    def __init__(self):
+        face_cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        self.face_detector = cv2.CascadeClassifier(face_cascade_path)
+        if self.face_detector.empty():
+            raise RuntimeError('Could not load Haar cascade face detector for device context')
+
     def detect(self, image: np.ndarray) -> dict:
         """
         Returns:
@@ -123,8 +129,10 @@ class DeviceDetector:
         h, w = image.shape[:2]
         frame_area = h * w
 
-        phone_detected     = self._detect_phone(image, h, w, frame_area)
-        headphone_detected  = self._detect_headphones(image, h, w)
+        face_box = self._largest_face_box(image)
+
+        phone_detected     = self._detect_phone(image, h, w, frame_area, face_box)
+        headphone_detected  = self._detect_headphones(image, h, w, face_box)
         watch_detected      = self._detect_watch_or_wearable(image, h, w, frame_area)
         earbud_detected     = self._detect_earbuds(image)
 
@@ -158,7 +166,33 @@ class DeviceDetector:
             }
         return {'device_detected': False, 'device_type': 'none', 'device_count': 0, 'confidence': 0.0}
 
-    def _detect_phone(self, image, h, w, frame_area):
+    def _largest_face_box(self, image):
+        try:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.equalizeHist(gray)
+            faces = self.face_detector.detectMultiScale(gray, 1.08, 4, minSize=(50, 50))
+            if len(faces) == 0:
+                return None
+            x, y, fw, fh = max(faces, key=lambda b: b[2] * b[3])
+            return (x, y, fw, fh)
+        except Exception:
+            return None
+
+    def _intersects(self, box_a, box_b, min_overlap=0.12):
+        ax, ay, aw, ah = box_a
+        bx, by, bw, bh = box_b
+        left = max(ax, bx)
+        top = max(ay, by)
+        right = min(ax + aw, bx + bw)
+        bottom = min(ay + ah, by + bh)
+        if right <= left or bottom <= top:
+            return False
+        intersection = (right - left) * (bottom - top)
+        area_a = aw * ah
+        area_b = bw * bh
+        return intersection / max(min(area_a, area_b), 1) >= min_overlap
+
+    def _detect_phone(self, image, h, w, frame_area, face_box=None):
         """Detect bright rectangular screen (phone/tablet/secondary laptop)."""
         try:
             hsv   = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -174,6 +208,7 @@ class DeviceDetector:
             combined_mask = cv2.bitwise_or(bright_mask, dark_mask)
 
             candidates = []
+            face_bottom = (face_box[1] + face_box[3]) if face_box else None
             for mask in (bright_mask, combined_mask):
                 contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 for cnt in contours:
@@ -186,6 +221,14 @@ class DeviceDetector:
                     solidity   = area / hull_area if hull_area > 0 else 0
                     rx, ry, rw, rh = cv2.boundingRect(cnt)
                     aspect = max(rw, rh) / max(min(rw, rh), 1)
+                    cx = rx + rw / 2
+                    cy = ry + rh / 2
+                    if face_box is not None and self._intersects((rx, ry, rw, rh), face_box, 0.08):
+                        continue
+                    if face_bottom is not None and cy < face_bottom + (0.02 * h):
+                        continue
+                    if cy < h * 0.28:
+                        continue
                     if solidity >= self.PHONE_RECT_THRESHOLD and self.PHONE_ASPECT_MIN <= aspect <= self.PHONE_ASPECT_MAX:
                         score = solidity * min(1.0, ratio / 0.02)
                         candidates.append({'area': area, 'score': score, 'aspect': aspect})
@@ -208,6 +251,14 @@ class DeviceDetector:
                 bbox_area = max(rw * rh, 1)
                 rectangularity = area / bbox_area
                 aspect = max(rw, rh) / max(min(rw, rh), 1)
+                cx = rx + rw / 2
+                cy = ry + rh / 2
+                if face_box is not None and self._intersects((rx, ry, rw, rh), face_box, 0.08):
+                    continue
+                if face_box is not None and cy < (face_box[1] + face_box[3]) + (0.02 * h):
+                    continue
+                if cy < h * 0.28:
+                    continue
 
                 if len(approx) <= 8 and rectangularity >= self.PHONE_EDGE_RECT_RATIO and self.PHONE_EDGE_ASPECT_MIN <= aspect <= self.PHONE_EDGE_ASPECT_MAX:
                     score = rectangularity * min(1.0, ratio / 0.02)
@@ -216,6 +267,8 @@ class DeviceDetector:
 
             if candidates:
                 best = max(candidates, key=lambda r: r['score'])
+                if face_box is None and best['score'] < 0.90:
+                    return {'found': False, 'count': 0, 'confidence': 0.0}
                 return {'found': True, 'count': len(candidates), 'confidence': best['score']}
         except Exception as e:
             print(f"[DEVICE] Phone detection error: {e}")
@@ -279,7 +332,7 @@ class DeviceDetector:
 
         return {'found': False, 'count': 0, 'confidence': 0.0}
 
-    def _detect_headphones(self, image, h, w):
+    def _detect_headphones(self, image, h, w, face_box=None):
         """Detect over-ear headphones / headsets using paired circle-like cups."""
         try:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -342,7 +395,7 @@ class DeviceDetector:
             if len(candidates) < 2:
                 if len(candidates) == 1:
                     x, y, r = candidates[0]
-                    if y < int(h * 0.92):
+                    if y < int(h * 0.92) and face_box is not None and abs(x - (face_box[0] + face_box[2] / 2)) <= face_box[2] * 1.2:
                         return {'found': True, 'count': 1, 'confidence': 0.42}
                 return {'found': False, 'count': 0, 'confidence': 0.0}
 
@@ -357,12 +410,21 @@ class DeviceDetector:
                         continue
                     if x_dist < self.HEADPHONE_MIN_PAIR_DIST or x_dist > self.HEADPHONE_MAX_PAIR_DIST:
                         continue
+                    if face_box is not None:
+                        face_cx = face_box[0] + face_box[2] / 2
+                        face_cy = face_box[1] + face_box[3] / 2
+                        if abs(((x1 + x2) / 2) - face_cx) > face_box[2] * 1.3:
+                            continue
+                        if ((y1 + y2) / 2) < face_cy - (face_box[3] * 0.25):
+                            continue
                     radius_similarity = 1.0 - min(abs(r1 - r2) / max(r1, r2), 1.0)
                     pair_score = radius_similarity * 0.55 + min(1.0, x_dist / self.HEADPHONE_MIN_PAIR_DIST) * 0.45
                     if pair_score > best_score:
                         best_score = pair_score
 
             if best_score > 0:
+                if face_box is None and best_score < 0.70:
+                    return {'found': False, 'count': 0, 'confidence': 0.0}
                 return {'found': True, 'count': 2, 'confidence': max(best_score, 0.45)}
         except Exception as e:
             print(f"[DEVICE] Headphone detection error: {e}")
