@@ -26,8 +26,8 @@ services:
       - NODE_ENV=production
       - AI_SERVICE_URL=http://ai-proctor:5000
       - MONGO_URI=mongodb://mongodb:27017/proctorguard
-      - JWT_SECRET=super-secret-key-change-this
-      - ADMIN_SECRET=ADMIN2026
+      - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_SECRET=${ADMIN_SECRET}
     depends_on:
       ai-proctor:
         condition: service_healthy

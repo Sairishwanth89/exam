@@ -16,19 +16,16 @@ os.environ.setdefault('MEDIAPIPE_DISABLE_GPU', '1')
 os.environ.setdefault('DISPLAY', '')
 
 import cv2
-import face_recognition
 import numpy as np
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 # ── Tunable constants ─────────────────────────────────────────────────────
-FACE_VERIFICATION_THRESHOLD = 0.62  # Max distance for "same person" (0-1 scale, lower=stricter)
+FACE_VERIFICATION_THRESHOLD = 0.45  # Max distance for "same person" (0-1 scale, lower=stricter)
 ENROLLMENT_FRAME_COUNT = 3          # Number of frames to capture for initial enrollment
 ENROLLMENT_MATCH_RATIO = 0.7        # Need 70% of frames to match reference for verification to pass
 MIN_FACE_WIDTH = 60                 # Minimum face bounding box width (pixels) for quality check
 MIN_FACE_HEIGHT = 60                # Minimum face bounding box height (pixels) for quality check
-FACE_UPSAMPLE = 1                   # Helps with smaller / farther faces
-FACE_ENCODING_MODEL = 'large'       # Use 'large' CNN model for more accurate 128D encoding
 # ──────────────────────────────────────────────────────────────────────────
 
 class FaceRecognizer:
@@ -44,11 +41,13 @@ class FaceRecognizer:
     """
     
     def __init__(self):
-        """Initialize face recognition model (dlib-based)."""
-        # face_recognition library uses dlib's 5-point face detector + CNN model
-        # This is pre-trained and included with face_recognition package
+        """Initialize lightweight OpenCV-based face verifier."""
         self.reference_encodings: Dict[str, np.ndarray] = {}  # student_id → encoding array
         self.enrollment_buffers: defaultdict[str, List[np.ndarray]] = defaultdict(list)  # student_id → [encodings...] during enrollment
+        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        self.face_detector = cv2.CascadeClassifier(cascade_path)
+        if self.face_detector.empty():
+            raise RuntimeError('Could not load OpenCV Haar cascade for face detection')
         
     def extract_face_encoding(self, image: np.ndarray) -> Optional[np.ndarray]:
         """
@@ -58,62 +57,58 @@ class FaceRecognizer:
             image: BGR numpy array (opencv format)
             
         Returns:
-            encoding (np.array of 128 floats) or None if no/multiple faces detected or poor quality
+            encoding (np.array of floats) or None if no/multiple faces detected or poor quality
             
-        Note: Returns encoding only if exactly ONE face is detected with good quality.
-        Uses CNN model for more accurate 128D encoding.
+            Note: Returns encoding only if exactly ONE face is detected with good quality.
         """
         try:
-            # face_recognition expects RGB, we have BGR
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            
-            # Detect face locations using HOG (faster for enrollment)
-            # CNN too slow for real-time enrollment (causes timeouts)
-            face_locations = face_recognition.face_locations(
-                image_rgb,
-                number_of_times_to_upsample=FACE_UPSAMPLE,
-                model='hog'
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.equalizeHist(gray)
+            face_locations = self.face_detector.detectMultiScale(
+                gray,
+                scaleFactor=1.1,
+                minNeighbors=5,
+                minSize=(MIN_FACE_WIDTH, MIN_FACE_HEIGHT)
             )
-            
+
             if len(face_locations) == 0:
                 return None
 
             if len(face_locations) > 1:
                 face_locations = sorted(
                     face_locations,
-                    key=lambda loc: (loc[2] - loc[0]) * (loc[1] - loc[3]),
+                    key=lambda loc: loc[2] * loc[3],
                     reverse=True
                 )
                 primary = face_locations[0]
-                primary_area = (primary[2] - primary[0]) * (primary[1] - primary[3])
+                primary_area = primary[2] * primary[3]
                 secondary = face_locations[1]
-                secondary_area = (secondary[2] - secondary[0]) * (secondary[1] - secondary[3])
+                secondary_area = secondary[2] * secondary[3]
                 if secondary_area >= primary_area * 0.65:
                     return None
                 face_locations = [primary]
             
             # Validate face size/position (quality check)
-            top, right, bottom, left = face_locations[0]
-            face_width = right - left
-            face_height = bottom - top
+            x, y, face_width, face_height = face_locations[0]
             
             # Ensure face is large enough (avoid tiny/edge faces)
             if face_width < MIN_FACE_WIDTH or face_height < MIN_FACE_HEIGHT:
                 return None
-            
-            # Extract encoding using 'large' model for higher accuracy
-            # Returns array of 128-dimensional encodings, one per face
-            encodings = face_recognition.face_encodings(
-                image_rgb, 
-                face_locations,
-                model=FACE_ENCODING_MODEL,  # 'large' = more accurate
-                num_jitters=1  # Keep runtime lower for real-time capture
-            )
-            
-            if not encodings:
+            face = gray[y:y + face_height, x:x + face_width]
+            if face.size == 0:
                 return None
-                
-            return encodings[0]  # Return first (and only) encoding
+
+            face = cv2.resize(face, (64, 64), interpolation=cv2.INTER_AREA)
+            face = cv2.GaussianBlur(face, (3, 3), 0)
+            pixels = face.astype(np.float32).reshape(-1)
+            hist = cv2.calcHist([face], [0], None, [16], [0, 256]).flatten().astype(np.float32)
+            features = np.concatenate([pixels, hist])
+            features -= float(np.mean(features))
+            norm = float(np.linalg.norm(features))
+            if norm <= 1e-6:
+                return None
+
+            return features / norm
             
         except Exception as e:
             print(f"[FACE_RECOGNITION] Encoding extraction failed: {e}")
@@ -176,8 +171,11 @@ class FaceRecognizer:
                 'frames_used': len(encodings)
             }
         
-        # Use median instead of mean for more robust reference (less affected by outliers)
-        reference = np.median(encodings, axis=0)
+        # Use mean for a stable lightweight reference, then normalize
+        reference = np.mean(encodings, axis=0)
+        reference_norm = float(np.linalg.norm(reference))
+        if reference_norm > 1e-6:
+            reference = reference / reference_norm
         
         self.reference_encodings[student_id] = reference
         self.enrollment_buffers[student_id] = []  # Clear buffer
@@ -228,9 +226,10 @@ class FaceRecognizer:
                 'frames_until_match': -1
             }
         
-        # Compare with reference using face_distance
+        # Compare with reference using cosine distance on lightweight features
         reference = self.reference_encodings[student_id]
-        distance: float = float(face_recognition.face_distance([reference], current_encoding)[0])
+        similarity = float(np.clip(np.dot(reference, current_encoding), -1.0, 1.0))
+        distance: float = float(np.clip(1.0 - similarity, 0.0, 1.0))
         
         # distance < threshold means same person
         verified: bool = distance < FACE_VERIFICATION_THRESHOLD

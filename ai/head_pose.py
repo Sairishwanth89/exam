@@ -18,7 +18,6 @@ os.environ.setdefault('MEDIAPIPE_DISABLE_GPU', '1')
 os.environ.setdefault('DISPLAY', '')
 
 import cv2
-import mediapipe as mp
 import numpy as np
 
 # ── Hardcoded rule thresholds (degrees) ──────────────────────────────────────
@@ -30,27 +29,12 @@ ROLL_THRESHOLD       = 50   # Head tilted sideways (very permissive — cosmetic
 
 class HeadPoseEstimator:
     def __init__(self):
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            max_num_faces=1,              # Only track primary face
-            refine_landmarks=False,
-            min_detection_confidence=0.6,
-            min_tracking_confidence=0.6
-        )
-
-        # 6 robust facial landmarks for PnP solve
-        # Nose tip, chin, left eye corner, right eye corner, left mouth, right mouth
-        self.POSE_LANDMARKS = [1, 152, 263, 33, 61, 291]
-
-        # Standard 3D face model points (generic)
-        self.model_points = np.array([
-            (  0.0,    0.0,   0.0),   # Nose tip
-            (  0.0, -330.0, -65.0),   # Chin
-            (-225.0, 170.0,-135.0),   # Left eye corner
-            ( 225.0, 170.0,-135.0),   # Right eye corner
-            (-150.0,-150.0,-125.0),   # Left mouth corner
-            ( 150.0,-150.0,-125.0)    # Right mouth corner
-        ], dtype=np.float64)
+        face_cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        eye_cascade_path = cv2.data.haarcascades + 'haarcascade_eye_tree_eyeglasses.xml'
+        self.face_detector = cv2.CascadeClassifier(face_cascade_path)
+        self.eye_detector = cv2.CascadeClassifier(eye_cascade_path)
+        if self.face_detector.empty() or self.eye_detector.empty():
+            raise RuntimeError('Could not load OpenCV cascades for head pose estimation')
 
     def estimate(self, image):
         """
@@ -63,35 +47,33 @@ class HeadPoseEstimator:
             yaw, pitch, roll – float (degrees)
         """
         try:
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            results   = self.face_mesh.process(image_rgb)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.equalizeHist(gray)
+            faces = self.face_detector.detectMultiScale(gray, 1.1, 5, minSize=(60, 60))
 
-            if not results.multi_face_landmarks:
+            if len(faces) == 0:
                 return self._no_face()
 
-            h, w      = image.shape[:2]
-            landmarks = results.multi_face_landmarks[0]
-
-            image_points = np.array([
-                [int(landmarks.landmark[i].x * w),
-                 int(landmarks.landmark[i].y * h)]
-                for i in self.POSE_LANDMARKS
-            ], dtype=np.float64)
-
-            focal   = w
-            cx, cy  = w / 2, h / 2
-            cam_mtx = np.array([[focal,0,cx],[0,focal,cy],[0,0,1]], dtype=np.float64)
-            dist    = np.zeros((4, 1))
-
-            ok, rvec, tvec = cv2.solvePnP(
-                self.model_points, image_points, cam_mtx, dist,
-                flags=cv2.SOLVEPNP_ITERATIVE
-            )
-            if not ok:
+            x, y, fw, fh = max(faces, key=lambda b: b[2] * b[3])
+            face_roi = gray[y:y + fh, x:x + fw]
+            eyes = self.eye_detector.detectMultiScale(face_roi, 1.1, 8, minSize=(15, 15))
+            if len(eyes) < 2:
                 return self._no_face()
 
-            R, _ = cv2.Rodrigues(rvec)
-            yaw, pitch, roll = self._euler(R)
+            eyes = sorted(eyes, key=lambda b: b[2] * b[3], reverse=True)[:2]
+            left_eye, right_eye = sorted(eyes, key=lambda b: b[0])
+            lx, ly, lw, lh = left_eye
+            rx, ry, rw, rh = right_eye
+            left_center = (lx + lw / 2.0, ly + lh / 2.0)
+            right_center = (rx + rw / 2.0, ry + rh / 2.0)
+            eye_mid_x = (left_center[0] + right_center[0]) / 2.0
+            eye_mid_y = (left_center[1] + right_center[1]) / 2.0
+            face_cx = fw / 2.0
+            face_cy = fh / 2.0
+
+            yaw = float(np.clip(((eye_mid_x - face_cx) / max(fw / 2.0, 1.0)) * 90.0, -90.0, 90.0))
+            pitch = float(np.clip(((face_cy - eye_mid_y) / max(fh / 2.0, 1.0)) * 90.0, -90.0, 90.0))
+            roll = float(np.degrees(np.arctan2((right_center[1] - left_center[1]), max((right_center[0] - left_center[0]), 1.0))))
 
             return {
                 'head_turned':  bool(abs(yaw)  > YAW_THRESHOLD),
@@ -110,18 +92,6 @@ class HeadPoseEstimator:
         return {'head_turned': False, 'looking_down': False, 'looking_up': False,
                 'yaw': 0.0, 'pitch': 0.0, 'roll': 0.0}
 
-    def _euler(self, R):
-        sy = np.sqrt(R[0,0]**2 + R[1,0]**2)
-        if sy > 1e-6:
-            x = np.arctan2( R[2,1], R[2,2])
-            y = np.arctan2(-R[2,0], sy)
-            z = np.arctan2( R[1,0], R[0,0])
-        else:
-            x = np.arctan2(-R[1,2], R[1,1])
-            y = np.arctan2(-R[2,0], sy)
-            z = 0
-        return np.degrees(y), np.degrees(x), np.degrees(z)
-
     def __del__(self):
         if hasattr(self, 'face_mesh'):
-            self.face_mesh.close()
+            pass

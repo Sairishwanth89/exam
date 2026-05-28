@@ -11,9 +11,6 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     libgles2 \
     libegl1 \
-    build-essential \
-    cmake \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Force MediaPipe to use CPU-only (no GPU/EGL context needed)

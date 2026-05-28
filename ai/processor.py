@@ -44,8 +44,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os, base64, time
 import numpy as np
-from PIL import Image
-from io import BytesIO
 import cv2
 from collections import defaultdict
 
@@ -400,11 +398,8 @@ def decode_frame(b64_str):
         if ',' in b64_str:
             b64_str = b64_str.split(',')[1]
         data   = base64.b64decode(b64_str)
-        img    = Image.open(BytesIO(data))
-        arr    = np.array(img)
-        if len(arr.shape) == 3 and arr.shape[2] == 3:
-            arr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
-        return arr
+        arr    = np.frombuffer(data, dtype=np.uint8)
+        return cv2.imdecode(arr, cv2.IMREAD_COLOR)
     except Exception as e:
         print(f"Frame decode error: {e}")
         return None

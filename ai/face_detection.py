@@ -15,7 +15,6 @@ os.environ.setdefault('MEDIAPIPE_DISABLE_GPU', '1')
 os.environ.setdefault('DISPLAY', '')
 
 import cv2
-import mediapipe as mp
 
 # ── Tunable constants (hardcoded rules) ──────────────────────────────────────
 PRIMARY_FACE_MIN_CONFIDENCE = 0.60   # Minimum confidence to treat a face as real
@@ -24,13 +23,10 @@ SECONDARY_FACE_SIZE_RATIO   = 0.40   # Secondary must be ≥40% primary area to 
 
 class FaceDetector:
     def __init__(self):
-        self.mp_face_detection = mp.solutions.face_detection
-        # model_selection=1 → full-range model (up to ~5m) so distant background
-        # faces are still detected but we'll filter them by size.
-        self.face_detection = self.mp_face_detection.FaceDetection(
-            model_selection=1,
-            min_detection_confidence=PRIMARY_FACE_MIN_CONFIDENCE
-        )
+        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        self.face_detection = cv2.CascadeClassifier(cascade_path)
+        if self.face_detection.empty():
+            raise RuntimeError('Could not load Haar cascade face detector')
 
     def detect(self, image):
         """
@@ -43,26 +39,30 @@ class FaceDetector:
             primary_area   – float, relative bounding-box area of primary face
         """
         try:
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            results   = self.face_detection.process(image_rgb)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.equalizeHist(gray)
+            faces = self.face_detection.detectMultiScale(
+                gray,
+                scaleFactor=1.1,
+                minNeighbors=5,
+                minSize=(60, 60)
+            )
 
-            if not results.detections:
+            if len(faces) == 0:
                 return {'face_detected': False, 'num_faces': 0, 'confidence': 0.0}
 
             h, w = image.shape[:2]
             frame_area = h * w
 
             # Collect (confidence, bbox_area) for each detected face
-            faces = []
-            for det in results.detections:
-                conf = det.score[0]
-                bb   = det.location_data.relative_bounding_box
-                area = (bb.width * w) * (bb.height * h)  # pixel area
-                faces.append({'conf': conf, 'area': area})
+            face_items = []
+            for (x, y, fw, fh) in faces:
+                area = fw * fh
+                face_items.append({'conf': 0.9, 'area': area})
 
             # Sort by area descending — largest = closest = primary student
-            faces.sort(key=lambda f: f['area'], reverse=True)
-            primary = faces[0]
+            face_items.sort(key=lambda f: f['area'], reverse=True)
+            primary = face_items[0]
 
             if primary['conf'] < PRIMARY_FACE_MIN_CONFIDENCE:
                 # Even the best face is below confidence threshold → ignore
@@ -70,7 +70,7 @@ class FaceDetector:
 
             # Count secondary faces that are large enough to be real people
             significant_secondary = [
-                f for f in faces[1:]
+                f for f in face_items[1:]
                 if f['area'] / primary['area'] >= SECONDARY_FACE_SIZE_RATIO
                 and f['conf'] >= PRIMARY_FACE_MIN_CONFIDENCE
             ]
@@ -90,4 +90,4 @@ class FaceDetector:
 
     def __del__(self):
         if hasattr(self, 'face_detection'):
-            self.face_detection.close()
+            pass
