@@ -781,6 +781,13 @@ async function captureAndSendFrame() {
         const flags = (data.analysis && data.analysis.flags) || [];
         const flagsLc = flags.map(f => (f || '').toString().toLowerCase());
 
+        // Additional analysis helpers
+        const deviceWarning = data.analysis && data.analysis.device_warning;
+        const deviceType = (data.analysis && data.analysis.device_type) || '';
+        const numFaces = (aiDetails && aiDetails.face && aiDetails.face.num_faces) || 0;
+
+        console.debug('[Proctor] analysis:', { flags, deviceWarning, deviceType, numFaces, cheatScore: data.cheatScore });
+
         // Surface immediate user-facing alerts for any flags (but avoid spamming)
         if (flags.length) {
             // Show the first flag as a toast and add a deduction line if server didn't change score
@@ -791,13 +798,25 @@ async function captureAndSendFrame() {
             }
         }
 
-        // Device / no-face detection using keyword matching
+        // Device / no-face detection using keyword matching and server device warnings
         if (noFace || flagsLc.some(f => /no face|no_face|face not detected|no face detected/.test(f))) {
             showProctorOverlay('👤', 'No Face Detected', 'Please return to your seat and keep your face visible to the camera.');
         } else if (flagsLc.some(f => /earbud|earphones|pod|airpods|earbuds/.test(f))) {
             showProctorOverlay('🎧', 'Earbuds / Pods Detected', 'Wireless earbuds were detected. Remove them immediately — audio assistance is not permitted.');
         } else if (flagsLc.some(f => /phone|mobile|smartphone|device|screen|tablet/.test(f))) {
             showProctorOverlay('📱', 'Device Detected', 'A phone or electronic device was detected. Remove it from view immediately.');
+        } else if (deviceWarning && deviceType) {
+            // Use device_type provided by server when available
+            const dt = deviceType.toString().toLowerCase();
+            if (/earbud|airpod|earphone|pod/.test(dt)) {
+                showProctorOverlay('🎧', 'Earbuds / Pods Detected', 'Wireless earbuds were detected. Remove them immediately.');
+            } else if (/phone|mobile|smartphone|tablet|screen/.test(dt)) {
+                showProctorOverlay('📱', 'Device Detected', 'A phone or electronic device was detected. Remove it from view immediately.');
+            } else {
+                showProctorOverlay('📱', 'Device Detected', `A device was detected (${deviceType}). Remove it from view.`);
+            }
+        } else if (numFaces > 1 || flagsLc.some(f => /multiple people|multiple faces|more than one face/.test(f))) {
+            showProctorOverlay('👥', 'Multiple People Detected', 'More than one person was detected in view. Please ensure you are alone.');
         } else {
             hideProctorOverlay();
         }
