@@ -722,6 +722,43 @@ async function initWebcam() {
         if (startBtn) { startBtn.disabled = false; startBtn.onclick = () => initiateFaceVerification(); }
     };
 
+    // Camera debug helper: logs permissions/devices/stream state
+    window._dumpCamDebug = async function() {
+        try {
+            const info = { userAgent: navigator.userAgent };
+            try {
+                if (navigator.permissions && navigator.permissions.query) {
+                    const perm = await navigator.permissions.query({ name: 'camera' });
+                    info.permission = { state: perm.state };
+                }
+            } catch (e) { info.permission = { error: String(e) }; }
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                info.devices = devices.map(d => ({ kind: d.kind, label: d.label, id: d.deviceId }));
+            } catch (e) { info.devices = { error: String(e) }; }
+            info.webcamStreamAttached = !!webcamStream;
+            if (webcamStream) info.tracks = webcamStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState }));
+            console.log('CAMERA DEBUG', info);
+            alert('Camera debug info logged to console. Copy the output and share if needed.');
+            return info;
+        } catch (err) {
+            console.error('dumpCamDebug failed', err);
+            alert('Failed to collect camera debug info. See console.');
+            return { error: String(err) };
+        }
+    };
+
+    // Floating Debug Cam button
+    try {
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.createElement('button');
+            btn.textContent = 'Debug Cam';
+            Object.assign(btn.style, { position: 'fixed', right: '12px', bottom: '12px', zIndex: 9999, padding: '6px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer' });
+            btn.onclick = () => window._dumpCamDebug();
+            document.body.appendChild(btn);
+        });
+    } catch (e) { /* ignore */ }
+
     await attemptCamera();
 }
 
