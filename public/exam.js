@@ -192,8 +192,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load exam
     await loadExam();
 
-    // Initialize webcam
-    await initWebcam();
+    // Defer webcam init until user clicks Start (ensures camera prompt is user-gesture)
+    const startBtn = document.getElementById('startExamBtn');
+    if (startBtn) {
+        startBtn.disabled = false; // make clickable
+        startBtn.addEventListener('click', async function startClicked(e) {
+            startBtn.disabled = true; // prevent double-click
+            try {
+                await initWebcam();
+                // If initWebcam succeeds it wires the Start button to `initiateFaceVerification`
+                // If not, re-enable the button so user can retry
+            } catch (err) {
+                console.error('initWebcam failed on Start click', err);
+                startBtn.disabled = false;
+            }
+        }, { once: true });
+    }
 
     // Setup submit button
     document.getElementById('submitBtn').addEventListener('click', submitExam);
