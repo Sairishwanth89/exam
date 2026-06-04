@@ -96,6 +96,21 @@ function setFaceVerificationButtonState({ startDisabled = false, skipDisabled = 
     if (skipBtn) skipBtn.disabled = skipDisabled;
 }
 
+function clearFaceCapturePreviews() {
+    const preview = document.getElementById('faceCapturePreview');
+    if (preview) preview.innerHTML = '';
+}
+
+function addFaceCapturePreview(frameData, index) {
+    const preview = document.getElementById('faceCapturePreview');
+    if (!preview) return;
+
+    const item = document.createElement('div');
+    item.className = 'face-capture-preview-item';
+    item.innerHTML = `<img src="${frameData}" alt="Captured face ${index}" /><span>#${index}</span>`;
+    preview.appendChild(item);
+}
+
 function waitForVideoReady(video, timeoutMs = 5000) {
     return new Promise((resolve) => {
         if (!video) {
@@ -371,6 +386,7 @@ async function startFaceCapture() {
 
     framesCollected = 0;
     faceVerificationActive = true;
+    clearFaceCapturePreviews();
     if (faceCapInterval) {
         clearInterval(faceCapInterval);
         faceCapInterval = null;
@@ -439,6 +455,7 @@ async function startFaceCapture() {
             
             if (result.captured) {
                 framesCollected = result.frames_collected;
+                addFaceCapturePreview(frameData, framesCollected);
                 
                 // Update progress dots
                 for (let i = 1; i <= 3; i++) {

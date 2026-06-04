@@ -149,13 +149,13 @@
 
         <!-- Face Verification Modal (for identity enrollment) -->
         <div id="faceVerificationModal" class="modal" style="display: none; z-index: 3001;">
-            <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-content face-verification-modal-content" style="max-width: 600px;">
                 <div class="modal-header">
                     <h2>🔐 Face Verification</h2>
                     <p style="color: var(--text-secondary); margin-top: 0.5rem; font-size: 0.9rem;">We need to verify your identity before the exam starts</p>
                 </div>
                 <div class="modal-body">
-                    <div id="faceVerificationSteps" style="text-align: center;">
+                    <div id="faceVerificationSteps" class="face-verification-steps" style="text-align: center;">
                         <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">Please look at the camera. We'll capture 3 clear face images for verification.</p>
                         <div id="faceVerificationCamera" style="width: min(100%, 420px); margin: 0 auto 1rem; aspect-ratio: 4/3; background: #000; border-radius: 12px; overflow: hidden; border: 3px solid var(--primary);">
                             <video id="faceVerificationVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
@@ -167,6 +167,7 @@
                                 <div class="face-capture-dot" id="dot2"></div>
                                 <div class="face-capture-dot" id="dot3"></div>
                             </div>
+                            <div id="faceCapturePreview" class="face-capture-preview" aria-label="Captured face previews"></div>
                             <p id="faceVerificationStatus" style="margin-top: 1rem; color: var(--warning); font-size: 0.9rem;">Waiting for clear face...</p>
                         </div>
                     </div>

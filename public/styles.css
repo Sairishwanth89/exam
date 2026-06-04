@@ -992,13 +992,20 @@ body.exam-page {
     width: min(92vw, 640px);
     max-height: 88vh;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 #faceVerificationModal .modal-body {
-    padding-bottom: 0.5rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 0.25rem;
 }
 
 #faceVerificationModal .modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1016,9 +1023,54 @@ body.exam-page {
 }
 
 #faceVerificationSteps {
-    max-height: 60vh;
+    max-height: calc(88vh - 220px);
     overflow-y: auto;
     padding-right: 0.25rem;
+}
+
+.face-capture-preview {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0.9rem auto 0;
+    width: min(100%, 420px);
+}
+
+.face-capture-preview-item {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(129, 140, 248, 0.55);
+    background: rgba(15, 23, 42, 0.6);
+    box-shadow: 0 0 18px rgba(99, 102, 241, 0.14);
+}
+
+.face-capture-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.face-capture-preview-item span {
+    position: absolute;
+    left: 0.35rem;
+    bottom: 0.35rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    color: #fff;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.face-verification-modal-content {
+    min-height: 0;
+}
+
+.face-verification-steps {
+    scrollbar-gutter: stable;
 }
 
 .face-capture-dot {
@@ -1071,6 +1123,15 @@ body.exam-page {
 @media (max-width: 640px) {
     #faceVerificationModal .modal-content {
         width: min(94vw, 640px);
+        max-height: 92vh;
+    }
+
+    #faceVerificationSteps {
+        max-height: calc(92vh - 200px);
+    }
+
+    .face-capture-preview {
+        width: min(100%, 420px);
     }
 
     #faceVerificationModal .modal-footer .btn-primary,
