@@ -1000,6 +1000,8 @@ body.exam-page {
     flex: 1 1 auto;
     min-height: 0;
     padding-bottom: 0.25rem;
+    /* Prevent the outer modal body from scrolling; only the steps area scrolls */
+    overflow: hidden;
 }
 
 #faceVerificationModal .modal-footer {
@@ -1110,14 +1112,25 @@ body.exam-page {
 }
 
 #faceVerificationModal .btn-secondary {
-    background: var(--dark-lighter);
-    color: var(--text);
-    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(6px);
+    padding: .6rem .9rem;
+    border-radius: 12px;
+    transition: all 0.18s ease;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15);
 }
 
 #faceVerificationModal .btn-secondary:hover {
-    background: var(--dark-light);
-    border-color: var(--text-secondary);
+    color: var(--text);
+    border-color: rgba(99,102,241,0.35);
+    background: rgba(99,102,241,0.06);
+    transform: translateY(-2px);
+}
+
+#faceVerificationModal .modal-footer .btn-secondary {
+    max-width: 180px;
 }
 
 @media (max-width: 640px) {

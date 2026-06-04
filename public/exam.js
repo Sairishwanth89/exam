@@ -776,18 +776,28 @@ async function captureAndSendFrame() {
         const faceResult   = aiDetails.face  || {};
         const deviceResult = aiDetails.device || {};
         const noFace       = faceResult.face_detected === false;
-        const devWarning   = data.analysis && data.analysis.device_warning;
-        const devType      = (data.analysis && data.analysis.device_type) || '';
 
-        if (noFace) {
-            showProctorOverlay('👤', 'No Face Detected',
-                'Please return to your seat and keep your face visible to the camera.');
-        } else if (devWarning && /earbud|pod/i.test(devType)) {
-            showProctorOverlay('🎧', 'Earbuds / Pods Detected',
-                'Wireless earbuds were detected. Remove them immediately — audio assistance is not permitted.');
-        } else if (devWarning) {
-            showProctorOverlay('📱', 'Device Detected',
-                'A phone or electronic device was detected. Remove it from view immediately.');
+        // Normalize flags for robust matching
+        const flags = (data.analysis && data.analysis.flags) || [];
+        const flagsLc = flags.map(f => (f || '').toString().toLowerCase());
+
+        // Surface immediate user-facing alerts for any flags (but avoid spamming)
+        if (flags.length) {
+            // Show the first flag as a toast and add a deduction line if server didn't change score
+            const primary = flags[0];
+            showToast(primary, false);
+            if (typeof data.cheatScore === 'undefined' || data.cheatScore === null) {
+                addCheatScoreDeductionEntry(primary, 0, cheatScore);
+            }
+        }
+
+        // Device / no-face detection using keyword matching
+        if (noFace || flagsLc.some(f => /no face|no_face|face not detected|no face detected/.test(f))) {
+            showProctorOverlay('👤', 'No Face Detected', 'Please return to your seat and keep your face visible to the camera.');
+        } else if (flagsLc.some(f => /earbud|earphones|pod|airpods|earbuds/.test(f))) {
+            showProctorOverlay('🎧', 'Earbuds / Pods Detected', 'Wireless earbuds were detected. Remove them immediately — audio assistance is not permitted.');
+        } else if (flagsLc.some(f => /phone|mobile|smartphone|device|screen|tablet/.test(f))) {
+            showProctorOverlay('📱', 'Device Detected', 'A phone or electronic device was detected. Remove it from view immediately.');
         } else {
             hideProctorOverlay();
         }
