@@ -988,6 +988,39 @@ body.exam-page {
 
 /* ===== FACE VERIFICATION STYLES ===== */
 
+#faceVerificationModal .modal-content {
+    width: min(92vw, 640px);
+    max-height: 88vh;
+    overflow: hidden;
+}
+
+#faceVerificationModal .modal-body {
+    padding-bottom: 0.5rem;
+}
+
+#faceVerificationModal .modal-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem 1.25rem;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.08));
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+#faceVerificationModal .modal-footer .btn-primary,
+#faceVerificationModal .modal-footer .btn-secondary {
+    min-width: 140px;
+    flex: 1 1 160px;
+}
+
+#faceVerificationSteps {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
 .face-capture-dot {
     width: 12px;
     height: 12px;
@@ -1033,6 +1066,18 @@ body.exam-page {
 #faceVerificationModal .btn-secondary:hover {
     background: var(--dark-light);
     border-color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+    #faceVerificationModal .modal-content {
+        width: min(94vw, 640px);
+    }
+
+    #faceVerificationModal .modal-footer .btn-primary,
+    #faceVerificationModal .modal-footer .btn-secondary {
+        width: 100%;
+        max-width: none !important;
+    }
 }
 
 /* Face verification video border animation */

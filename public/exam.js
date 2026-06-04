@@ -17,6 +17,7 @@ let submitInProgress = false;
 let faceVerificationStream = null;
 let faceVerificationActive = false;
 let framesCollected = 0;
+let faceCapInterval = null;
 const FRAMES_NEEDED_FOR_VERIFICATION = 3;
 
 // ── Cheat Score ───────────────────────────────────────────────
@@ -85,6 +86,48 @@ function showThresholdBanner(message, isDanger) {
         banner.style.opacity = '0';
         setTimeout(() => banner.remove(), 500);
     }, 4000);
+}
+
+function setFaceVerificationButtonState({ startDisabled = false, skipDisabled = false } = {}) {
+    const startBtn = document.getElementById('startFaceVerificationBtn');
+    const skipBtn = document.getElementById('skipFaceVerificationBtn');
+
+    if (startBtn) startBtn.disabled = startDisabled;
+    if (skipBtn) skipBtn.disabled = skipDisabled;
+}
+
+function waitForVideoReady(video, timeoutMs = 5000) {
+    return new Promise((resolve) => {
+        if (!video) {
+            resolve(false);
+            return;
+        }
+
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+            resolve(true);
+            return;
+        }
+
+        let settled = false;
+        const cleanup = () => {
+            video.removeEventListener('loadedmetadata', onReady);
+            video.removeEventListener('canplay', onReady);
+        };
+        const finish = (value) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(value);
+        };
+        const onReady = () => finish(video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0);
+
+        video.addEventListener('loadedmetadata', onReady, { once: true });
+        video.addEventListener('canplay', onReady, { once: true });
+
+        window.setTimeout(() => {
+            finish(video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0);
+        }, timeoutMs);
+    });
 }
 
 // ── No-person / device overlay ───────────────────────────────
@@ -285,6 +328,16 @@ async function initiateFaceVerification() {
 async function showFaceVerificationModal() {
     const modal = document.getElementById('faceVerificationModal');
     modal.style.display = 'flex';
+
+    setFaceVerificationButtonState({ startDisabled: false, skipDisabled: false });
+    const status = document.getElementById('faceVerificationStatus');
+    if (status) {
+        status.textContent = '📷 Preparing camera...';
+    }
+
+    // Bind handlers before requesting camera access so Skip works even if permission is delayed or denied.
+    document.getElementById('startFaceVerificationBtn').onclick = startFaceCapture;
+    document.getElementById('skipFaceVerificationBtn').onclick = skipFaceVerification;
     
     // Get access to camera for verification
     try {
@@ -296,26 +349,48 @@ async function showFaceVerificationModal() {
         const video = document.getElementById('faceVerificationVideo');
         video.srcObject = faceVerificationStream;
         video.play().catch(() => {});
-        
-        // Setup button handlers
-        document.getElementById('startFaceVerificationBtn').onclick = startFaceCapture;
-        document.getElementById('skipFaceVerificationBtn').onclick = skipFaceVerification;
+
+        await waitForVideoReady(video, 5000);
+        if (status) {
+            status.textContent = '✅ Camera ready. Capture your face to begin.';
+        }
         
     } catch (error) {
         console.error('[Face Verification] Camera error:', error);
+        if (status) {
+            status.textContent = '⚠️ Camera access needed for face verification. You can skip and continue.';
+        }
+        const startBtn = document.getElementById('startFaceVerificationBtn');
+        if (startBtn) startBtn.disabled = true;
         showToast('Camera access needed for face verification', true);
     }
 }
 
 async function startFaceCapture() {
+    if (faceVerificationActive) return;
+
     framesCollected = 0;
     faceVerificationActive = true;
+    if (faceCapInterval) {
+        clearInterval(faceCapInterval);
+        faceCapInterval = null;
+    }
     
     document.getElementById('startFaceVerificationBtn').disabled = true;
-    document.getElementById('skipFaceVerificationBtn').disabled = true;
     
     const camera = document.getElementById('faceVerificationCamera');
     const status = document.getElementById('faceVerificationStatus');
+    const video = document.getElementById('faceVerificationVideo');
+
+    const videoReady = await waitForVideoReady(video, 5000);
+    if (!videoReady) {
+        faceVerificationActive = false;
+        if (status) {
+            status.textContent = '⚠️ Camera is still starting. Please wait a second and try again.';
+        }
+        document.getElementById('startFaceVerificationBtn').disabled = false;
+        return;
+    }
     
     if (camera) {
         camera.classList.remove('face-error');
@@ -325,23 +400,30 @@ async function startFaceCapture() {
         status.textContent = '🎯 Capturing face images...';
     }
     
-    // Capture frames every 800ms for a steadier enrollment sequence
-    let captureCount = 0;
-    const faceCapInterval = setInterval(async () => {
+    // Capture frames every 900ms for a steadier enrollment sequence
+    faceCapInterval = setInterval(async () => {
         if (!faceVerificationActive || framesCollected >= FRAMES_NEEDED_FOR_VERIFICATION) {
             clearInterval(faceCapInterval);
+            faceCapInterval = null;
+            return;
+        }
+
+        if (!video || !video.videoWidth || !video.videoHeight) {
+            if (status) {
+                status.textContent = '📷 Waiting for the camera feed...';
+            }
             return;
         }
         
-        const video = document.getElementById('faceVerificationVideo');
-        if (!video || !video.videoWidth) return;
-        
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        const captureWidth = Math.min(400, video.videoWidth);
+        const captureHeight = Math.max(1, Math.round((captureWidth / video.videoWidth) * video.videoHeight));
+        canvas.width = captureWidth;
+        canvas.height = captureHeight;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0);
-        const frameData = canvas.toDataURL('image/jpeg', 0.90);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(video, 0, 0, captureWidth, captureHeight);
+        const frameData = canvas.toDataURL('image/jpeg', 0.82);
         
         try {
             const response = await fetch('/api/enroll/capture', {
@@ -377,11 +459,12 @@ async function startFaceCapture() {
                 
                 if (framesCollected >= FRAMES_NEEDED_FOR_VERIFICATION) {
                        clearInterval(faceCapInterval);
+                        faceCapInterval = null;
                     finalizeFaceVerification();
                 }
             } else {
                    if (status) {
-                status.textContent = '⚠️ ' + (result.error || 'Move face closer to camera...');
+                    status.textContent = '⚠️ ' + (result.error || 'Move face closer to camera and keep your face centered.');
                    }
                    if (camera) {
                 camera.classList.add('face-error');
@@ -391,12 +474,11 @@ async function startFaceCapture() {
         } catch (error) {
             console.error('[Face Capture] Error:', error);
                if (status) {
-                   status.textContent = '❌ Network error - please try again';
+                       status.textContent = '❌ Capture error. Please wait a moment and try again.';
                }
         }
         
-        captureCount++;
-        }, 800);
+            }, 900);
 }
 
 async function finalizeFaceVerification() {
@@ -414,6 +496,10 @@ async function finalizeFaceVerification() {
         if (data.success) {
             document.getElementById('faceVerificationStatus').textContent = '✅ ' + data.message;
             document.getElementById('faceVerificationCamera').classList.add('face-verified');
+            if (faceCapInterval) {
+                clearInterval(faceCapInterval);
+                faceCapInterval = null;
+            }
             showToast('Face verification complete! Exam will start now.', false);
             
             setTimeout(() => {
@@ -429,10 +515,16 @@ async function finalizeFaceVerification() {
     } catch (error) {
         console.error('[Face Verification] Finalization error:', error);
         showToast('Face verification error. Please try again.', true);
+        faceVerificationActive = false;
+        document.getElementById('startFaceVerificationBtn').disabled = false;
     }
 }
 
 function skipFaceVerification() {
+    if (faceCapInterval) {
+        clearInterval(faceCapInterval);
+        faceCapInterval = null;
+    }
     faceVerificationActive = false;
     closeFaceVerificationModal();
     proceedToExamQuestions();
@@ -441,10 +533,15 @@ function skipFaceVerification() {
 function closeFaceVerificationModal() {
     const modal = document.getElementById('faceVerificationModal');
     modal.style.display = 'none';
+    faceVerificationActive = false;
     
     if (faceVerificationStream) {
         faceVerificationStream.getTracks().forEach(track => track.stop());
         faceVerificationStream = null;
+    }
+    if (faceCapInterval) {
+        clearInterval(faceCapInterval);
+        faceCapInterval = null;
     }
 }
 

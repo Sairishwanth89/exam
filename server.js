@@ -63,6 +63,30 @@ async function connectMongo(retries = 5) {
 }
 connectMongo();
 
+async function postAiWithRetry(url, data, options = {}, retries = 2) {
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= retries + 1; attempt++) {
+        try {
+            return await axios.post(url, data, options);
+        } catch (error) {
+            lastError = error;
+            const status = error.response && error.response.status;
+            const shouldRetry = !status || [502, 503, 504].includes(status) || error.code === 'ECONNABORTED';
+
+            if (attempt <= retries && shouldRetry) {
+                console.warn(`[AI_PROXY] POST ${url} failed (attempt ${attempt}/${retries + 1})`, status || error.code || error.message);
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                continue;
+            }
+
+            break;
+        }
+    }
+
+    throw lastError;
+}
+
 // Guard: return 503 if MongoDB is not ready yet
 app.use('/api', (req, res, next) => {
     if (mongoose.connection.readyState !== 1) {
@@ -957,7 +981,7 @@ app.post('/api/enroll/initiate', authenticateToken, async (req, res) => {
         const username = req.user.username;
         
         // Notify AI service to start enrollment
-    const aiRes = await axios.post(`${AI_SERVICE_URL}/enroll/initiate/${username}`, {}, { timeout: 15000 });
+        const aiRes = await postAiWithRetry(`${AI_SERVICE_URL}/enroll/initiate/${username}`, {}, { timeout: 15000 });
         
         res.json({
             success: true,
@@ -979,19 +1003,22 @@ app.post('/api/enroll/capture', authenticateToken, async (req, res) => {
         
         if (!frame) return res.status(400).json({ error: 'No frame provided' });
         
-        const aiRes = await axios.post(`${AI_SERVICE_URL}/enroll/capture/${username}`, 
-            { frame }, 
+        const aiRes = await postAiWithRetry(
+            `${AI_SERVICE_URL}/enroll/capture/${username}`,
+            { frame },
             { timeout: 20000 }
         );
         
         res.json(aiRes.data);
     } catch (error) {
-        console.error('Enrollment capture error:', error.message);
-        res.json({ 
+        const status = error.response && error.response.status;
+        console.error('Enrollment capture error:', status ? `status ${status}` : error.message);
+        res.status(200).json({ 
             captured: false, 
-            error: 'Failed to capture face. Please try again.',
+            error: 'Face capture service is temporarily unavailable. Please try again.',
             frames_collected: 0,
-            frames_needed: 3
+            frames_needed: 3,
+            retryable: true
         });
     }
 });
@@ -1001,12 +1028,12 @@ app.post('/api/enroll/finalize', authenticateToken, async (req, res) => {
     try {
         const username = req.user.username;
         
-        const aiRes = await axios.post(`${AI_SERVICE_URL}/enroll/finalize/${username}`, {}, { timeout: 5000 });
+        const aiRes = await postAiWithRetry(`${AI_SERVICE_URL}/enroll/finalize/${username}`, {}, { timeout: 5000 });
         
         res.json(aiRes.data);
     } catch (error) {
         console.error('Enrollment finalize error:', error.message);
-        res.json({ success: false, error: 'Failed to finalize enrollment' });
+        res.status(200).json({ success: false, error: 'Face verification finalization is temporarily unavailable' });
     }
 });
 

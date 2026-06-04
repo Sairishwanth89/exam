@@ -157,7 +157,7 @@
                 <div class="modal-body">
                     <div id="faceVerificationSteps" style="text-align: center;">
                         <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">Please look at the camera. We'll capture 3 clear face images for verification.</p>
-                        <div id="faceVerificationCamera" style="width: 100%; max-width: 400px; margin: 0 auto 1rem; aspect-ratio: 4/3; background: #000; border-radius: 12px; overflow: hidden; border: 3px solid var(--primary);">
+                        <div id="faceVerificationCamera" style="width: min(100%, 420px); margin: 0 auto 1rem; aspect-ratio: 4/3; background: #000; border-radius: 12px; overflow: hidden; border: 3px solid var(--primary);">
                             <video id="faceVerificationVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
                         </div>
                         <div id="faceVerificationProgress" style="margin: 1rem 0;">
@@ -172,8 +172,8 @@
                     </div>
                 </div>
                 <div class="modal-footer" style="text-align: center; gap: 1rem;">
-                    <button id="skipFaceVerificationBtn" class="btn-secondary" style="max-width: 150px;">Skip</button>
-                    <button id="startFaceVerificationBtn" class="btn-primary" style="max-width: 150px;">Start Capture</button>
+                    <button id="skipFaceVerificationBtn" type="button" class="btn-secondary" style="max-width: 150px;">Skip</button>
+                    <button id="startFaceVerificationBtn" type="button" class="btn-primary" style="max-width: 150px;">Start Capture</button>
                 </div>
             </div>
         </div>
