@@ -1000,7 +1000,11 @@ body.exam-page {
     flex: 1 1 auto;
     min-height: 0;
     padding-bottom: 0.25rem;
+<<<<<<< HEAD
     /* Prevent the outer modal body from scrolling; only the steps area scrolls */
+=======
+    /* Ensure the outer modal body does not scroll — only the steps area should */
+>>>>>>> b6332e9 (UI: proctor overlays — handle device_warning/device_type and multi-face; modal fixes)
     overflow: hidden;
 }
 
@@ -1129,6 +1133,10 @@ body.exam-page {
     transform: translateY(-2px);
 }
 
+<<<<<<< HEAD
+=======
+/* Make Skip visually lighter on small screens and keep consistent sizing */
+>>>>>>> b6332e9 (UI: proctor overlays — handle device_warning/device_type and multi-face; modal fixes)
 #faceVerificationModal .modal-footer .btn-secondary {
     max-width: 180px;
 }
