@@ -399,13 +399,10 @@ async function startFaceCapture() {
     framesCollected = 0;
     faceVerificationActive = true;
     clearFaceCapturePreviews();
-<<<<<<< HEAD
     if (faceCapInterval) {
         clearInterval(faceCapInterval);
         faceCapInterval = null;
     }
-=======
->>>>>>> b6332e9 (UI: proctor overlays — handle device_warning/device_type and multi-face; modal fixes)
     
     document.getElementById('startFaceVerificationBtn').disabled = true;
     
@@ -842,10 +839,6 @@ async function captureAndSendFrame() {
 
         // Surface immediate user-facing alerts for any flags (but avoid spamming)
         if (flags.length) {
-<<<<<<< HEAD
-            // Show the first flag as a toast and add a deduction line if server didn't change score
-=======
->>>>>>> b6332e9 (UI: proctor overlays — handle device_warning/device_type and multi-face; modal fixes)
             const primary = flags[0];
             showToast(primary, false);
             if (typeof data.cheatScore === 'undefined' || data.cheatScore === null) {
@@ -861,10 +854,6 @@ async function captureAndSendFrame() {
         } else if (flagsLc.some(f => /phone|mobile|smartphone|device|screen|tablet/.test(f))) {
             showProctorOverlay('📱', 'Device Detected', 'A phone or electronic device was detected. Remove it from view immediately.');
         } else if (deviceWarning && deviceType) {
-<<<<<<< HEAD
-            // Use device_type provided by server when available
-=======
->>>>>>> b6332e9 (UI: proctor overlays — handle device_warning/device_type and multi-face; modal fixes)
             const dt = deviceType.toString().toLowerCase();
             if (/earbud|airpod|earphone|pod/.test(dt)) {
                 showProctorOverlay('🎧', 'Earbuds / Pods Detected', 'Wireless earbuds were detected. Remove them immediately.');
@@ -975,21 +964,6 @@ async function captureAndSendFrame() {
         // Update status UI
         const statusElement = document.getElementById('webcamStatus');
 
-<<<<<<< HEAD
-        // ── Determine what the AI sees to control overlays ────────────────
-        const faceInfo  = aiDetails.face || {};
-        const aiFlags   = (data.analysis && data.analysis.flags) || [];
-        const hasDevice = aiFlags.some(f => /phone|mobile|smartphone|device/i.test(f));
-=======
-        {
-            // ── Determine what the AI sees to control overlays ────────────────
-            const aiDetails = (data.analysis && data.analysis.details) || {};
-            const faceInfo  = aiDetails.face || {};
-            const noFace    = !faceInfo.face_detected;
-            const aiFlags   = (data.analysis && data.analysis.flags) || [];
-            const hasDevice = aiFlags.some(f => /phone|mobile|smartphone|device/i.test(f));
->>>>>>> b6332e9 (UI: proctor overlays — handle device_warning/device_type and multi-face; modal fixes)
-
             if (noFace) {
                 showProctorOverlay('👤', 'No Face Detected', 'Please return to your seat and keep your face visible to the camera');
             } else if (hasDevice) {
@@ -997,7 +971,6 @@ async function captureAndSendFrame() {
             } else {
                 hideProctorOverlay();
             }
-        }
         // The AI sends face_mismatch_warning:true AND appends a flag string
         const isFaceMismatch = 
             (data.analysis && data.analysis.face_mismatch_warning === true) ||
