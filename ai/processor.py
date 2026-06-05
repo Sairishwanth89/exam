@@ -168,6 +168,12 @@ class DeviceDetector:
 
     def _largest_face_box(self, image):
         try:
+            # Same minimum-size guard as FaceDetector to prevent cascade assertion
+            h_img, w_img = image.shape[:2]
+            if h_img < 120 or w_img < 120:
+                scale = max(120 / h_img, 120 / w_img)
+                image = cv2.resize(image, (int(w_img * scale), int(h_img * scale)),
+                                   interpolation=cv2.INTER_LINEAR)
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             gray = cv2.equalizeHist(gray)
             faces = self.face_detector.detectMultiScale(gray, 1.08, 4, minSize=(50, 50))
@@ -661,12 +667,12 @@ def analyze_frame():
         if face_result.get('face_detected') and device_result.get('device_detected'):
             dtype = device_result.get('device_type', 'unknown')
             dconf = device_result.get('confidence', 0)
-            if dtype == 'phone_or_screen' and dconf >= 0.22:
+            if dtype == 'phone_or_screen' and dconf >= 0.55:
                 suspicious.add('device_phone')
                 detect_ctx['device_type']       = dtype
                 detect_ctx['device_confidence'] = round(dconf, 3)
                 print(f"[DEVICE] Student={student_id} | phone/screen detected conf={dconf:.3f}", flush=True)
-            elif dtype == 'headphone_or_headset' and dconf >= 0.30:
+            elif dtype == 'headphone_or_headset' and dconf >= 0.75:
                 suspicious.add('device_headphone')
                 detect_ctx['device_type']       = dtype
                 detect_ctx['device_confidence'] = round(dconf, 3)

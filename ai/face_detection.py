@@ -39,6 +39,14 @@ class FaceDetector:
             primary_area   – float, relative bounding-box area of primary face
         """
         try:
+            # Guard: Haar cascade needs at least ~120px in each dimension or it throws
+            # "0 <= scaleIdx" assertion error. Upscale tiny frames before processing.
+            h_img, w_img = image.shape[:2]
+            if h_img < 120 or w_img < 120:
+                scale = max(120 / h_img, 120 / w_img)
+                image = cv2.resize(image, (int(w_img * scale), int(h_img * scale)),
+                                   interpolation=cv2.INTER_LINEAR)
+
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             gray = cv2.equalizeHist(gray)
             faces = self.face_detection.detectMultiScale(
