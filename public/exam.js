@@ -773,15 +773,18 @@ async function captureAndSendFrame() {
         return;
     }
 
-    // Set canvas size to match video
-    canvas.width = vw;
-    canvas.height = vh;
+    // Scale DOWN to 320px wide to reduce payload size (was full 640px — caused 22KB+ payloads)
+    // Render's free tier AI service needs small frames to respond within timeout
+    const MAX_W = 320;
+    const scale = Math.min(1, MAX_W / vw);
+    canvas.width  = Math.round(vw * scale);
+    canvas.height = Math.round(vh * scale);
 
-    // Draw video frame to canvas
-    ctx.drawImage(video, 0, 0);
+    // Draw video frame to canvas (scaled)
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to base64 JPEG
-    const frameData = canvas.toDataURL('image/jpeg', 0.8);
+    // Convert to base64 JPEG — quality 0.5 keeps faces readable but cuts size by ~70%
+    const frameData = canvas.toDataURL('image/jpeg', 0.5);
 
     // Send to server
     try {

@@ -63,12 +63,15 @@ async function connectMongo(retries = 5) {
 }
 connectMongo();
 
+// Render free tier cold-starts can take 30-60s — use a generous timeout and retry wrapper
+const AI_TIMEOUT_MS = 60000; // 60 seconds
+
 async function postAiWithRetry(url, data, options = {}, retries = 2) {
     let lastError = null;
 
     for (let attempt = 1; attempt <= retries + 1; attempt++) {
         try {
-            return await axios.post(url, data, options);
+            return await axios.post(url, data, { ...options, timeout: AI_TIMEOUT_MS });
         } catch (error) {
             lastError = error;
             const status = error.response && error.response.status;
@@ -76,7 +79,7 @@ async function postAiWithRetry(url, data, options = {}, retries = 2) {
 
             if (attempt <= retries && shouldRetry) {
                 console.warn(`[AI_PROXY] POST ${url} failed (attempt ${attempt}/${retries + 1})`, status || error.code || error.message);
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+                await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
                 continue;
             }
 
@@ -86,6 +89,21 @@ async function postAiWithRetry(url, data, options = {}, retries = 2) {
 
     throw lastError;
 }
+
+// Keep-alive: ping the AI service every 9 minutes so Render doesn't spin it down
+// (Render free tier spins down after 15 min of inactivity)
+function startAiKeepAlive() {
+    const pingInterval = 9 * 60 * 1000; // 9 minutes
+    const ping = () => {
+        axios.get(`${AI_SERVICE_URL}/health`, { timeout: 10000 })
+            .then(() => console.log('[KEEP_ALIVE] AI service pinged OK'))
+            .catch(e  => console.warn('[KEEP_ALIVE] AI ping failed:', e.code || e.message));
+    };
+    // Initial ping on startup to wake the service early
+    setTimeout(ping, 3000);
+    setInterval(ping, pingInterval);
+}
+startAiKeepAlive();
 
 // Guard: return 503 if MongoDB is not ready yet
 app.use('/api', (req, res, next) => {
@@ -618,7 +636,8 @@ app.post('/api/proctor/frame', authenticateToken, async (req, res) => {
         if (!username || !frame) return res.status(400).json({ error: 'Username and frame required' });
 
         // Forward to AI service — include studentId so face verification looks up the right reference
-        const aiResponse = await axios.post(`${AI_SERVICE_URL}/analyze`, { frame, timestamp, studentId: username }, { timeout: 5000 });
+        // Use retry wrapper — Render cold starts can take up to 60s
+        const aiResponse = await postAiWithRetry(`${AI_SERVICE_URL}/analyze`, { frame, timestamp, studentId: username });
         const analysis = aiResponse.data;
 
         // Load current proctor log from MongoDB
@@ -817,6 +836,36 @@ app.get('/api/proctor/report/:username', async (req, res) => {
 
         const localFlags = procLog.flags || [];
 
+        const frameWarnings = (procLog.frames || []).flatMap(frame => {
+            const analysis = frame.analysis || {};
+            const issues = [];
+            const action = String(analysis.action || '').toLowerCase();
+            const message = String(analysis.message || '').toLowerCase();
+            const flags = Array.isArray(analysis.flags) ? analysis.flags : [];
+
+            if (action === 'warning' || /warning/.test(message)) {
+                issues.push({
+                    timestamp: frame.timestamp,
+                    issue: analysis.message || 'Proctoring warning',
+                    metrics: {},
+                    source: 'frame_warning'
+                });
+            }
+
+            for (const flag of flags) {
+                if (flag) {
+                    issues.push({
+                        timestamp: frame.timestamp,
+                        issue: flag,
+                        metrics: {},
+                        source: 'frame_warning'
+                    });
+                }
+            }
+
+            return issues;
+        });
+
         // Try to also pull the detailed violation log from the AI service
         let aiViolations = [];
         try {
@@ -833,6 +882,9 @@ app.get('/api/proctor/report/:username', async (req, res) => {
         }
         for (const f of localFlags) {
             merged.push({ timestamp: f.timestamp, issue: f.issue, image: f.image || null, source: 'local' });
+        }
+        for (const f of frameWarnings) {
+            merged.push(f);
         }
         merged.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
@@ -938,7 +990,14 @@ app.get('/api/admin/users', async (req, res) => {
             const procData   = procMap[username] || { flags: [], frames: [] };
             const resData    = resultMap[username];
 
-            const violationCount = (procData.flags || []).length;
+            const frameWarningCount = (procData.frames || []).filter(frame => {
+                const analysis = frame.analysis || {};
+                const action = String(analysis.action || '').toLowerCase();
+                const message = String(analysis.message || '').toLowerCase();
+                const flags = Array.isArray(analysis.flags) ? analysis.flags : [];
+                return action === 'warning' || /warning/.test(message) || flags.length > 0;
+            }).length;
+            const violationCount = (procData.flags || []).length + frameWarningCount;
             const cheatScore     = procData.cheatScore ?? 100;
             let status = 'active';
             let score  = null;
