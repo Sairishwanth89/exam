@@ -428,23 +428,21 @@ async function startFaceCapture() {
         status.textContent = '🎯 Capturing face images...';
     }
     
-    // Capture frames every 900ms for a steadier enrollment sequence
-    faceCapInterval = setInterval(async () => {
-        if (!faceVerificationActive || framesCollected >= FRAMES_NEEDED_FOR_VERIFICATION) {
-            clearInterval(faceCapInterval);
-            faceCapInterval = null;
+    // Sequential capture — await each server response before taking the next frame.
+    // The old setInterval fired every 900ms regardless of response time, causing
+    // all 3 requests to fire before 1 came back on Render (slow cold-starts),
+    // leaving framesCollected=0 forever and getting stuck.
+    const captureNextFrame = async () => {
+        if (!faceVerificationActive || framesCollected >= FRAMES_NEEDED_FOR_VERIFICATION) return;
+
+        if (!video || !video.videoWidth || !video.videoHeight) {
+            if (status) status.textContent = '📷 Waiting for the camera feed...';
+            setTimeout(captureNextFrame, 600);
             return;
         }
 
-        if (!video || !video.videoWidth || !video.videoHeight) {
-            if (status) {
-                status.textContent = '📷 Waiting for the camera feed...';
-            }
-            return;
-        }
-        
         const canvas = document.createElement('canvas');
-        const captureWidth = Math.min(400, video.videoWidth);
+        const captureWidth = Math.min(480, video.videoWidth);
         const captureHeight = Math.max(1, Math.round((captureWidth / video.videoWidth) * video.videoHeight));
         canvas.width = captureWidth;
         canvas.height = captureHeight;
@@ -452,7 +450,9 @@ async function startFaceCapture() {
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(video, 0, 0, captureWidth, captureHeight);
         const frameData = canvas.toDataURL('image/jpeg', 0.82);
-        
+
+        if (status) status.textContent = `📸 Taking photo ${framesCollected + 1} of 3...`;
+
         try {
             const response = await fetch('/api/enroll/capture', {
                 method: 'POST',
@@ -462,53 +462,52 @@ async function startFaceCapture() {
                 },
                 body: JSON.stringify({ frame: frameData })
             });
-            
+
             const result = await response.json();
-            
+
             if (result.captured) {
                 framesCollected = result.frames_collected;
                 addFaceCapturePreview(frameData, framesCollected);
-                
-                // Update progress dots
+
                 for (let i = 1; i <= 3; i++) {
                     const dot = document.getElementById(`dot${i}`);
-                       if (dot) {
-                    if (i <= framesCollected) {
-                        dot.classList.add('captured');
-                        dot.classList.remove('capturing');
-                    } else if (i === framesCollected + 1) {
-                        dot.classList.add('capturing');
+                    if (dot) {
+                        if (i <= framesCollected) {
+                            dot.classList.add('captured');
+                            dot.classList.remove('capturing');
+                        } else if (i === framesCollected + 1) {
+                            dot.classList.add('capturing');
+                        }
                     }
-                       }
                 }
-                
-                   if (status) {
-                status.textContent = `✅ Captured ${framesCollected}/3 face images`;
-                   }
-                
+
+                if (status) status.textContent = `✅ Captured ${framesCollected}/3 face images`;
+
                 if (framesCollected >= FRAMES_NEEDED_FOR_VERIFICATION) {
-                       clearInterval(faceCapInterval);
-                        faceCapInterval = null;
                     finalizeFaceVerification();
+                    return; // Done
                 }
             } else {
-                   if (status) {
-                    status.textContent = '⚠️ ' + (result.error || 'Move face closer to camera and keep your face centered.');
-                   }
-                   if (camera) {
-                camera.classList.add('face-error');
-                setTimeout(() => camera.classList.remove('face-error'), 500);
-                   }
+                if (status) status.textContent = '⚠️ ' + (result.error || 'Keep face centered and try again.');
+                if (camera) {
+                    camera.classList.add('face-error');
+                    setTimeout(() => camera.classList.remove('face-error'), 500);
+                }
             }
         } catch (error) {
             console.error('[Face Capture] Error:', error);
-               if (status) {
-                       status.textContent = '❌ Capture error. Please wait a moment and try again.';
-               }
+            if (status) status.textContent = '❌ Capture error — retrying...';
         }
-        
-            }, 900);
+
+        // Wait 1.5s then capture next (only if still active and not done)
+        if (faceVerificationActive && framesCollected < FRAMES_NEEDED_FOR_VERIFICATION) {
+            setTimeout(captureNextFrame, 1500);
+        }
+    };
+
+    captureNextFrame(); // Kick off
 }
+
 
 async function finalizeFaceVerification() {
     try {
