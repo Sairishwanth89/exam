@@ -16,10 +16,10 @@ os.environ.setdefault('DISPLAY', '')
 import cv2
 import numpy as np
 
-# ── Tunable constants ─────────────────────────────────────────────────────────
-GAZE_AWAY_THRESHOLD = 0.60   # Normalized iris offset to be considered "looking away"
-                              # 0.60 catches real gaze-aways without random false flags
-GAZE_DIRECTION_TH   = 0.40   # Threshold for labelling direction (left/right)
+# ── Tunable constants — HF Space strict mode ─────────────────────────────────
+GAZE_AWAY_THRESHOLD = 0.50   # Normalized iris offset — strict: catches subtle gaze deviations
+                              # HF Space can handle the compute needed for tight detection
+GAZE_DIRECTION_TH   = 0.30   # Threshold for labelling direction (left/right)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class EyeTracker:

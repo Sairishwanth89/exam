@@ -20,11 +20,11 @@ os.environ.setdefault('DISPLAY', '')
 import cv2
 import numpy as np
 
-# ── Hardcoded rule thresholds (degrees) ──────────────────────────────────────
-YAW_THRESHOLD        = 38   # Head turned left/right
-PITCH_DOWN_THRESHOLD = 32   # Head looking down (at lap/notes)
-PITCH_UP_THRESHOLD   = 28   # Head looking up
-ROLL_THRESHOLD       = 45   # Head tilted sideways
+# ── Hardcoded rule thresholds (degrees) — HF Space strict mode ───────────────
+YAW_THRESHOLD        = 30   # Head turned left/right (strict)
+PITCH_DOWN_THRESHOLD = 25   # Head looking down at notes (strict)
+PITCH_UP_THRESHOLD   = 22   # Head looking up (strict)
+ROLL_THRESHOLD       = 40   # Head tilted sideways
 # ─────────────────────────────────────────────────────────────────────────────
 
 class HeadPoseEstimator:

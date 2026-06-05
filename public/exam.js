@@ -772,19 +772,19 @@ async function captureAndSendFrame() {
         return;
     }
 
-    // 480px wide is the minimum MediaPipe Face Mesh and face_recognition need to work reliably.
-    // Going lower breaks iris tracking, head pose PnP solve, and 128-d face encoding extraction.
-    // JPEG quality 0.72 is a good balance between payload size and detection accuracy.
-    const MAX_W = 480;
+    // HF Space has 16GB RAM + 2 vCPUs — send full 640px frames at max quality.
+    // No need to downscale. MediaPipe iris tracking, head-pose PnP and face_recognition
+    // all perform at their best on full-resolution input.
+    const MAX_W = 640;
     const scale = Math.min(1, MAX_W / vw);
     canvas.width  = Math.round(vw * scale);
     canvas.height = Math.round(vh * scale);
 
-    // Draw video frame to canvas (scaled)
+    // Draw video frame to canvas (native resolution)
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to base64 JPEG
-    const frameData = canvas.toDataURL('image/jpeg', 0.72);
+    // High-quality JPEG — face_recognition needs clear features for 128-d encoding
+    const frameData = canvas.toDataURL('image/jpeg', 0.90);
 
     // Send to server
     try {

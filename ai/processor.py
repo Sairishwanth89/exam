@@ -60,14 +60,15 @@ from head_pose      import HeadPoseEstimator
 from face_recognition_module import FaceRecognizer, FACE_VERIFICATION_THRESHOLD
 
 # ── Tunable rule constants ────────────────────────────────────────────────────
-CONFIRM_FRAMES         = 8   # Frames a violation must sustain before being flagged
-ABSENCE_CONFIRM_FRAMES = 12  # Frames of no-face before flagging student as absent
-GAZE_CONFIRM_FRAMES    = 10  # Frames of looking-away before gaze flag fires
-COOLDOWN_FRAMES        = 15  # Frames to suppress re-logging the same violation type
-FACE_MISMATCH_CONFIRM_FRAMES = 4   # Frames of face mismatch before flagging identity change
-FACE_MISMATCH_IMMEDIATE_DISTANCE = 0.10  # Extra gap above threshold — lower = catches more mismatches
-MAX_YAW_FOR_FACE_MATCH = 35.0     # Do not perform strict face mismatch while head is strongly turned
-MAX_PITCH_FOR_FACE_MATCH = 28.0   # Do not perform strict face mismatch while looking too far up/down
+# HF Space: 16GB RAM + 2 vCPUs — full strict detection, no compromises needed.
+CONFIRM_FRAMES         = 6   # Frames a violation must sustain before being flagged
+ABSENCE_CONFIRM_FRAMES = 10  # Frames of no-face before flagging student as absent
+GAZE_CONFIRM_FRAMES    = 8   # Frames of looking-away before gaze flag fires
+COOLDOWN_FRAMES        = 12  # Frames to suppress re-logging the same violation type
+FACE_MISMATCH_CONFIRM_FRAMES = 3   # Frames of face mismatch before flagging identity change
+FACE_MISMATCH_IMMEDIATE_DISTANCE = 0.08  # Extra gap above threshold — strict mismatch catch
+MAX_YAW_FOR_FACE_MATCH = 30.0     # Do not perform strict face mismatch while head is strongly turned
+MAX_PITCH_FOR_FACE_MATCH = 25.0   # Do not perform strict face mismatch while looking too far up/down
 # ─────────────────────────────────────────────────────────────────────────────
 
 
