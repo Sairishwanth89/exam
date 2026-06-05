@@ -21,10 +21,10 @@ import cv2
 import numpy as np
 
 # ── Hardcoded rule thresholds (degrees) ──────────────────────────────────────
-YAW_THRESHOLD        = 45   # Head turned left/right. Was 35.
-PITCH_DOWN_THRESHOLD = 40   # Head looking down (at lap/notes). Was 30.
-PITCH_UP_THRESHOLD   = 35   # Head looking up (at ceiling/phone above). Was 25.
-ROLL_THRESHOLD       = 50   # Head tilted sideways (very permissive — cosmetic)
+YAW_THRESHOLD        = 38   # Head turned left/right
+PITCH_DOWN_THRESHOLD = 32   # Head looking down (at lap/notes)
+PITCH_UP_THRESHOLD   = 28   # Head looking up
+ROLL_THRESHOLD       = 45   # Head tilted sideways
 # ─────────────────────────────────────────────────────────────────────────────
 
 class HeadPoseEstimator:

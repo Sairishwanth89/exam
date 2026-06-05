@@ -60,14 +60,14 @@ from head_pose      import HeadPoseEstimator
 from face_recognition_module import FaceRecognizer, FACE_VERIFICATION_THRESHOLD
 
 # ── Tunable rule constants ────────────────────────────────────────────────────
-CONFIRM_FRAMES         = 10  # Frames a violation must sustain before being flagged
-ABSENCE_CONFIRM_FRAMES = 18  # Frames of no-face before flagging student as absent
-GAZE_CONFIRM_FRAMES    = 15  # Frames of looking-away before gaze flag fires
+CONFIRM_FRAMES         = 8   # Frames a violation must sustain before being flagged
+ABSENCE_CONFIRM_FRAMES = 12  # Frames of no-face before flagging student as absent
+GAZE_CONFIRM_FRAMES    = 10  # Frames of looking-away before gaze flag fires
 COOLDOWN_FRAMES        = 15  # Frames to suppress re-logging the same violation type
-FACE_MISMATCH_CONFIRM_FRAMES = 6  # Frames of face mismatch before flagging identity change
-FACE_MISMATCH_IMMEDIATE_DISTANCE = 0.20  # Extra gap above threshold for immediate mismatch flag
-MAX_YAW_FOR_FACE_MATCH = 28.0     # Do not perform strict face mismatch while head is strongly turned
-MAX_PITCH_FOR_FACE_MATCH = 22.0   # Do not perform strict face mismatch while looking too far up/down
+FACE_MISMATCH_CONFIRM_FRAMES = 4   # Frames of face mismatch before flagging identity change
+FACE_MISMATCH_IMMEDIATE_DISTANCE = 0.10  # Extra gap above threshold — lower = catches more mismatches
+MAX_YAW_FOR_FACE_MATCH = 35.0     # Do not perform strict face mismatch while head is strongly turned
+MAX_PITCH_FOR_FACE_MATCH = 28.0   # Do not perform strict face mismatch while looking too far up/down
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -661,18 +661,17 @@ def analyze_frame():
                 detect_ctx['pitch'] = round(pose_result.get('pitch', 0), 1)
 
         # ── Device detection ────────────────────────────────────────────────────
-        # Only trust phone/headphone alerts when a face is actually present.
-        # This prevents bright background glare from firing a fake device alert
-        # during face-absent frames.
-        if face_result.get('face_detected') and device_result.get('device_detected'):
+        # Allow device detection even without a confirmed face — phones/screens
+        # in the background should still be flagged.
+        if device_result.get('device_detected'):
             dtype = device_result.get('device_type', 'unknown')
             dconf = device_result.get('confidence', 0)
-            if dtype == 'phone_or_screen' and dconf >= 0.55:
+            if dtype == 'phone_or_screen' and dconf >= 0.35:
                 suspicious.add('device_phone')
                 detect_ctx['device_type']       = dtype
                 detect_ctx['device_confidence'] = round(dconf, 3)
                 print(f"[DEVICE] Student={student_id} | phone/screen detected conf={dconf:.3f}", flush=True)
-            elif dtype == 'headphone_or_headset' and dconf >= 0.75:
+            elif dtype == 'headphone_or_headset' and dconf >= 0.55:
                 suspicious.add('device_headphone')
                 detect_ctx['device_type']       = dtype
                 detect_ctx['device_confidence'] = round(dconf, 3)

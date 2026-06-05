@@ -17,9 +17,9 @@ import cv2
 import numpy as np
 
 # ── Tunable constants ─────────────────────────────────────────────────────────
-GAZE_AWAY_THRESHOLD = 0.70   # Normalized offset to be considered "looking away"
-                              # Raised to 0.70 to avoid random flags
-GAZE_DIRECTION_TH   = 0.45   # Threshold for labelling direction (left/right)
+GAZE_AWAY_THRESHOLD = 0.60   # Normalized iris offset to be considered "looking away"
+                              # 0.60 catches real gaze-aways without random false flags
+GAZE_DIRECTION_TH   = 0.40   # Threshold for labelling direction (left/right)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class EyeTracker:
